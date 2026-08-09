@@ -1,0 +1,7 @@
+services:
+  discord-stream-calendar:
+    build: .
+    container_name: discord-stream-calendar
+    restart: unless-stopped
+    env_file:
+      - .env
