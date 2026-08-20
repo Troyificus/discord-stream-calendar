@@ -14,6 +14,11 @@ export function getWeekDates() {
   });
 }
 
+export function formatDateUK(isoDate) {
+  const [year, month, day] = isoDate.split('-');
+  return `${day}/${month}/${year}`;
+}
+
 export async function buildWeeklyEmbed() {
   const dates = getWeekDates();
 
@@ -35,7 +40,7 @@ export async function buildWeeklyEmbed() {
     const day = days?.find((d) => d.date === date);
 
     if (!day || (!day.game && !day.attendance?.length)) {
-      embed.addFields({ name: date, value: 'No stream scheduled', inline: false });
+      embed.addFields({ name: formatDateUK(date), value: 'No stream scheduled', inline: false });
       continue;
     }
 
@@ -54,7 +59,7 @@ export async function buildWeeklyEmbed() {
       open > 0 ? `${open} slot${open === 1 ? '' : 's'} open` : 'Full'
     ];
 
-    embed.addFields({ name: date, value: lines.join('\n'), inline: false });
+    embed.addFields({ name: formatDateUK(date), value: lines.join('\n'), inline: false });
   }
 
   const row = new ActionRowBuilder().addComponents(

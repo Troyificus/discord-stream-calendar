@@ -10,7 +10,7 @@ import {
 } from 'discord.js';
 import { supabase } from './supabaseClient.js';
 import { pushSegmentToTwitch } from './twitchClient.js';
-import { buildWeeklyEmbed, refreshCalendarMessage, getWeekDates } from './embedBuilder.js';
+import { buildWeeklyEmbed, refreshCalendarMessage, getWeekDates, formatDateUK } from './embedBuilder.js';
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
@@ -71,7 +71,7 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         await refreshCalendarMessage(client);
-        return interaction.editReply(`Set ${date} to ${game} at ${time} UTC.`);
+        return interaction.editReply(`Set ${formatDateUK(date)} to ${game} at ${time} UTC.`);
       }
 
       if (interaction.commandName === 'calendar-setcapacity') {
@@ -82,7 +82,7 @@ client.on('interactionCreate', async (interaction) => {
         const day = await getOrCreateDay(date);
         await supabase.from('stream_days').update({ capacity }).eq('id', day.id);
         await refreshCalendarMessage(client);
-        return interaction.editReply(`Set capacity for ${date} to ${capacity}.`);
+        return interaction.editReply(`Set capacity for ${formatDateUK(date)} to ${capacity}.`);
       }
 
       if (interaction.commandName === 'calendar-requests') {
@@ -97,7 +97,7 @@ client.on('interactionCreate', async (interaction) => {
 
         for (const req of pending) {
           const embed = new EmbedBuilder()
-            .setDescription(`${req.display_name} wants to guest on ${req.stream_days.date}\nRequested <t:${Math.floor(new Date(req.created_at).getTime() / 1000)}:R>`);
+            .setDescription(`${req.display_name} wants to guest on ${formatDateUK(req.stream_days.date)}\nRequested <t:${Math.floor(new Date(req.created_at).getTime() / 1000)}:R>`);
           const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`approve_request_${req.id}`).setLabel('Approve').setStyle(ButtonStyle.Success),
             new ButtonBuilder().setCustomId(`deny_request_${req.id}`).setLabel('Deny').setStyle(ButtonStyle.Danger)
@@ -127,7 +127,7 @@ client.on('interactionCreate', async (interaction) => {
         const menu = new StringSelectMenuBuilder()
           .setCustomId('select_day_manage')
           .setPlaceholder('Pick a date')
-          .addOptions(dates.map((d) => ({ label: d, value: d })));
+          .addOptions(dates.map((d) => ({ label: formatDateUK(d), value: d })));
 
         return interaction.reply({ components: [new ActionRowBuilder().addComponents(menu)], ephemeral: true });
       }
@@ -151,7 +151,7 @@ client.on('interactionCreate', async (interaction) => {
         const menu = new StringSelectMenuBuilder()
           .setCustomId('select_day_guest')
           .setPlaceholder('Pick a date')
-          .addOptions(openDates.map((d) => ({ label: d, value: d })));
+          .addOptions(openDates.map((d) => ({ label: formatDateUK(d), value: d })));
 
         return interaction.reply({ components: [new ActionRowBuilder().addComponents(menu)], ephemeral: true });
       }
@@ -162,7 +162,7 @@ client.on('interactionCreate', async (interaction) => {
         const day = await getOrCreateDay(date);
         await supabase.from('attendance').upsert({ stream_day_id: day.id, member_id: member.id });
         await refreshCalendarMessage(client);
-        return interaction.update({ content: `You're in for ${date}.`, components: [] });
+        return interaction.update({ content: `You're in for ${formatDateUK(date)}.`, components: [] });
       }
 
       if (interaction.customId.startsWith('leave_day_')) {
@@ -171,7 +171,7 @@ client.on('interactionCreate', async (interaction) => {
         const day = await getOrCreateDay(date);
         await supabase.from('attendance').delete().eq('stream_day_id', day.id).eq('member_id', member.id);
         await refreshCalendarMessage(client);
-        return interaction.update({ content: `Removed you from ${date}.`, components: [] });
+        return interaction.update({ content: `Removed you from ${formatDateUK(date)}.`, components: [] });
       }
 
       if (interaction.customId.startsWith('confirm_guest_')) {
@@ -182,7 +182,7 @@ client.on('interactionCreate', async (interaction) => {
           discord_user_id: interaction.user.id,
           display_name: interaction.user.username
         });
-        return interaction.update({ content: `Request sent for ${date}. You'll hear back once it's reviewed.`, components: [] });
+        return interaction.update({ content: `Request sent for ${formatDateUK(date)}. You'll hear back once it's reviewed.`, components: [] });
       }
 
       if (interaction.customId.startsWith('approve_request_')) {
@@ -219,14 +219,14 @@ client.on('interactionCreate', async (interaction) => {
           new ButtonBuilder().setCustomId(`join_day_${date}`).setLabel('Join this day').setStyle(ButtonStyle.Success).setDisabled(!!existing),
           new ButtonBuilder().setCustomId(`leave_day_${date}`).setLabel('Leave this day').setStyle(ButtonStyle.Danger).setDisabled(!existing)
         );
-        return interaction.update({ content: `${date}: ${existing ? 'you\'re in' : 'you\'re not signed up yet'}`, components: [row] });
+        return interaction.update({ content: `${formatDateUK(date)}: ${existing ? 'you\'re in' : 'you\'re not signed up yet'}`, components: [row] });
       }
 
       if (interaction.customId === 'select_day_guest') {
         const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId(`confirm_guest_${date}`).setLabel(`Request ${date}`).setStyle(ButtonStyle.Primary)
+          new ButtonBuilder().setCustomId(`confirm_guest_${date}`).setLabel(`Request ${formatDateUK(date)}`).setStyle(ButtonStyle.Primary)
         );
-        return interaction.update({ content: `Confirm your guest request for ${date}:`, components: [row] });
+        return interaction.update({ content: `Confirm your guest request for ${formatDateUK(date)}:`, components: [row] });
       }
     }
   } catch (err) {
