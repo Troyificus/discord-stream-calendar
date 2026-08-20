@@ -128,7 +128,8 @@ export async function buildMonthlyEmbed() {
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('manage_days').setLabel('Manage my days').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('request_guest').setLabel('Request to guest').setStyle(ButtonStyle.Primary)
+    new ButtonBuilder().setCustomId('request_guest').setLabel('Request to guest').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setLabel('Open full calendar').setStyle(ButtonStyle.Link).setURL('https://calendar.rated16bit.uk')
   );
 
   return { content, components: [row], files: [attachment], embeds: [] };

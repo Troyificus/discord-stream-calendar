@@ -1,0 +1,46 @@
+import { cookies } from 'next/headers';
+import { createSessionToken } from '../../../../lib/session.js';
+
+export async function GET(request) {
+  const url = new URL(request.url);
+  const code = url.searchParams.get('code');
+  if (!code) return Response.redirect(new URL('/', request.url));
+
+  const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: process.env.DISCORD_CLIENT_ID,
+      client_secret: process.env.DISCORD_CLIENT_SECRET,
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: process.env.DISCORD_REDIRECT_URI
+    })
+  });
+  const tokenData = await tokenRes.json();
+  if (!tokenRes.ok) {
+    return new Response(`Discord sign-in failed: ${JSON.stringify(tokenData)}`, { status: 400 });
+  }
+
+  const userRes = await fetch('https://discord.com/api/users/@me', {
+    headers: { Authorization: `Bearer ${tokenData.access_token}` }
+  });
+  const user = await userRes.json();
+
+  const session = createSessionToken({
+    id: user.id,
+    username: user.username,
+    exp: Date.now() + 30 * 24 * 60 * 60 * 1000 // 30 days
+  });
+
+  const cookieStore = await cookies();
+  cookieStore.set('session', session, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 30 * 24 * 60 * 60
+  });
+
+  return Response.redirect(new URL('/', request.url));
+}
