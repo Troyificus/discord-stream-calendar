@@ -20,8 +20,16 @@ export function formatDateUK(isoDate) {
 }
 
 export function parseDateUK(ukDate) {
-  const [day, month, year] = ukDate.split('/');
-  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  const match = ukDate.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!match) {
+    throw new Error(`"${ukDate}" isn't a valid date - use DD/MM/YYYY, e.g. 19/08/2026.`);
+  }
+  const [, day, month, year] = match;
+  const iso = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  if (Number.isNaN(new Date(iso).getTime())) {
+    throw new Error(`"${ukDate}" isn't a real date - use DD/MM/YYYY, e.g. 19/08/2026.`);
+  }
+  return iso;
 }
 
 export async function buildWeeklyEmbed() {

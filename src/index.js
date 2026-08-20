@@ -6,7 +6,8 @@ import {
   ButtonBuilder,
   ButtonStyle,
   StringSelectMenuBuilder,
-  EmbedBuilder
+  EmbedBuilder,
+  MessageFlags
 } from 'discord.js';
 import { supabase } from './supabaseClient.js';
 import { pushSegmentToTwitch } from './twitchClient.js';
@@ -35,20 +36,25 @@ client.on('interactionCreate', async (interaction) => {
     // ---------- Slash commands (admin only) ----------
     if (interaction.isChatInputCommand()) {
       if (!isAdmin(interaction)) {
-        return interaction.reply({ content: 'You need the admin role for that.', ephemeral: true });
+        return interaction.reply({ content: 'You need the admin role for that.', flags: MessageFlags.Ephemeral });
       }
 
       if (interaction.commandName === 'calendar-post') {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         await refreshCalendarMessage(client);
         return interaction.editReply('Calendar posted.');
       }
 
       if (interaction.commandName === 'calendar-setgame') {
-        const date = parseDateUK(interaction.options.getString('date'));
+        let date;
+        try {
+          date = parseDateUK(interaction.options.getString('date'));
+        } catch (err) {
+          return interaction.reply({ content: err.message, flags: MessageFlags.Ephemeral });
+        }
         const game = interaction.options.getString('game');
         const time = interaction.options.getString('time');
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const startTimeUtc = new Date(`${date}T${time}:00Z`).toISOString();
         const day = await getOrCreateDay(date);
@@ -67,7 +73,7 @@ client.on('interactionCreate', async (interaction) => {
           }
         } catch (err) {
           console.error('Twitch push failed:', err);
-          await interaction.followUp({ content: `Saved, but the Twitch push failed: ${err.message}`, ephemeral: true });
+          await interaction.followUp({ content: `Saved, but the Twitch push failed: ${err.message}`, flags: MessageFlags.Ephemeral });
         }
 
         await refreshCalendarMessage(client);
@@ -75,9 +81,14 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       if (interaction.commandName === 'calendar-setcapacity') {
-        const date = parseDateUK(interaction.options.getString('date'));
+        let date;
+        try {
+          date = parseDateUK(interaction.options.getString('date'));
+        } catch (err) {
+          return interaction.reply({ content: err.message, flags: MessageFlags.Ephemeral });
+        }
         const capacity = interaction.options.getInteger('capacity');
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const day = await getOrCreateDay(date);
         await supabase.from('stream_days').update({ capacity }).eq('id', day.id);
@@ -86,7 +97,7 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       if (interaction.commandName === 'calendar-requests') {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         const { data: pending } = await supabase
           .from('guest_requests')
           .select('*, stream_days(date)')
@@ -102,7 +113,7 @@ client.on('interactionCreate', async (interaction) => {
             new ButtonBuilder().setCustomId(`approve_request_${req.id}`).setLabel('Approve').setStyle(ButtonStyle.Success),
             new ButtonBuilder().setCustomId(`deny_request_${req.id}`).setLabel('Deny').setStyle(ButtonStyle.Danger)
           );
-          await interaction.followUp({ embeds: [embed], components: [row], ephemeral: true });
+          await interaction.followUp({ embeds: [embed], components: [row], flags: MessageFlags.Ephemeral });
         }
         return;
       }
@@ -120,7 +131,7 @@ client.on('interactionCreate', async (interaction) => {
           .single();
 
         if (!member) {
-          return interaction.reply({ content: 'You\'re not on the core roster, so this button isn\'t for you - try "Request to guest" instead.', ephemeral: true });
+          return interaction.reply({ content: 'You\'re not on the core roster, so this button isn\'t for you - try "Request to guest" instead.', flags: MessageFlags.Ephemeral });
         }
 
         const dates = getWeekDates();
@@ -129,7 +140,7 @@ client.on('interactionCreate', async (interaction) => {
           .setPlaceholder('Pick a date')
           .addOptions(dates.map((d) => ({ label: formatDateUK(d), value: d })));
 
-        return interaction.reply({ components: [new ActionRowBuilder().addComponents(menu)], ephemeral: true });
+        return interaction.reply({ components: [new ActionRowBuilder().addComponents(menu)], flags: MessageFlags.Ephemeral });
       }
 
       if (interaction.customId === 'request_guest') {
@@ -145,7 +156,7 @@ client.on('interactionCreate', async (interaction) => {
         });
 
         if (!openDates.length) {
-          return interaction.reply({ content: 'No open slots this week.', ephemeral: true });
+          return interaction.reply({ content: 'No open slots this week.', flags: MessageFlags.Ephemeral });
         }
 
         const menu = new StringSelectMenuBuilder()
@@ -153,7 +164,7 @@ client.on('interactionCreate', async (interaction) => {
           .setPlaceholder('Pick a date')
           .addOptions(openDates.map((d) => ({ label: formatDateUK(d), value: d })));
 
-        return interaction.reply({ components: [new ActionRowBuilder().addComponents(menu)], ephemeral: true });
+        return interaction.reply({ components: [new ActionRowBuilder().addComponents(menu)], flags: MessageFlags.Ephemeral });
       }
 
       if (interaction.customId.startsWith('join_day_')) {
@@ -186,7 +197,7 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       if (interaction.customId.startsWith('approve_request_')) {
-        if (!isAdmin(interaction)) return interaction.reply({ content: 'Admin only.', ephemeral: true });
+        if (!isAdmin(interaction)) return interaction.reply({ content: 'Admin only.', flags: MessageFlags.Ephemeral });
         const id = interaction.customId.replace('approve_request_', '');
         await supabase.from('guest_requests').update({ status: 'approved' }).eq('id', id);
         await refreshCalendarMessage(client);
@@ -194,7 +205,7 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       if (interaction.customId.startsWith('deny_request_')) {
-        if (!isAdmin(interaction)) return interaction.reply({ content: 'Admin only.', ephemeral: true });
+        if (!isAdmin(interaction)) return interaction.reply({ content: 'Admin only.', flags: MessageFlags.Ephemeral });
         const id = interaction.customId.replace('deny_request_', '');
         await supabase.from('guest_requests').update({ status: 'denied' }).eq('id', id);
         return interaction.update({ content: 'Denied.', embeds: [], components: [] });
@@ -231,7 +242,7 @@ client.on('interactionCreate', async (interaction) => {
     }
   } catch (err) {
     console.error(err);
-    const payload = { content: 'Something went wrong - try again.', ephemeral: true };
+    const payload = { content: 'Something went wrong - try again.', flags: MessageFlags.Ephemeral };
     if (interaction.deferred || interaction.replied) {
       await interaction.followUp(payload).catch(() => {});
     } else {
