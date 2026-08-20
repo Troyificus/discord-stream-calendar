@@ -30,8 +30,8 @@ export function renderCalendarImage(title, monthDates, dayInfo) {
   ctx.fillStyle = '#2b2d31';
   ctx.fillRect(0, 0, width, height);
 
-  ctx.fillStyle = '#f2f3f5';
-  ctx.font = 'bold 26px sans-serif';
+  ctx.fillStyle = '#5865f2';
+  ctx.font = 'bold 28px sans-serif';
   ctx.fillText(title, PAD, PAD + 30);
 
   ctx.font = 'bold 13px sans-serif';
@@ -64,11 +64,11 @@ export function renderCalendarImage(title, monthDates, dayInfo) {
     ctx.fillRect(x + 1, y + 1, CELL_W - 2, CELL_H - 2);
 
     ctx.fillStyle = isToday ? '#c9cdfb' : '#dbdee1';
-    ctx.font = 'bold 15px sans-serif';
+    ctx.font = 'bold 16px sans-serif';
     ctx.fillText(String(dayNum), x + 10, y + 22);
 
     if (info) {
-      ctx.font = '12px sans-serif';
+      ctx.font = 'italic 12px serif';
       ctx.fillStyle = info.game ? '#f2f3f5' : '#949ba4';
       const gameLabel = info.game || 'game tbc';
       const gameText = gameLabel.length > 16 ? `${gameLabel.slice(0, 15)}…` : gameLabel;

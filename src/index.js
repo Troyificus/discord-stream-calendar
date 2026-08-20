@@ -17,7 +17,8 @@ import {
   chunkArray,
   dayLabel,
   formatDateUK,
-  parseDateUK
+  parseDateUK,
+  parseDatesList
 } from './embedBuilder.js';
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
@@ -59,9 +60,9 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       if (interaction.commandName === 'calendar-setgame') {
-        let date;
+        let dates;
         try {
-          date = parseDateUK(interaction.options.getString('date'));
+          dates = parseDatesList(interaction.options.getString('dates'));
         } catch (err) {
           return interaction.reply({ content: err.message, flags: MessageFlags.Ephemeral });
         }
@@ -69,12 +70,34 @@ client.on('interactionCreate', async (interaction) => {
         const time = interaction.options.getString('time');
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-        const startTimeUtc = new Date(`${date}T${time}:00Z`).toISOString();
-        const day = await getOrCreateDay(date);
-        await supabase.from('stream_days').update({ game, start_time_utc: startTimeUtc }).eq('id', day.id);
+        for (const date of dates) {
+          const startTimeUtc = new Date(`${date}T${time}:00Z`).toISOString();
+          const day = await getOrCreateDay(date);
+          await supabase.from('stream_days').update({ game, start_time_utc: startTimeUtc }).eq('id', day.id);
+        }
 
         await refreshCalendarMessage(client);
-        return interaction.editReply(`Set ${formatDateUK(date)} to ${game} at ${time} UTC.`);
+        const dateList = dates.map(formatDateUK).join(', ');
+        return interaction.editReply(`Set ${game} at ${time} UTC for ${dates.length} day${dates.length === 1 ? '' : 's'}: ${dateList}.`);
+      }
+
+      if (interaction.commandName === 'calendar-cleargame') {
+        let dates;
+        try {
+          dates = parseDatesList(interaction.options.getString('dates'));
+        } catch (err) {
+          return interaction.reply({ content: err.message, flags: MessageFlags.Ephemeral });
+        }
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+        for (const date of dates) {
+          const day = await getOrCreateDay(date);
+          await supabase.from('stream_days').update({ game: null, start_time_utc: null }).eq('id', day.id);
+        }
+
+        await refreshCalendarMessage(client);
+        const dateList = dates.map(formatDateUK).join(', ');
+        return interaction.editReply(`Cleared the game/time for ${dates.length} day${dates.length === 1 ? '' : 's'}: ${dateList}. Signups are untouched.`);
       }
 
       if (interaction.commandName === 'calendar-setrecurring') {

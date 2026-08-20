@@ -23,6 +23,15 @@ export function parseDateUK(ukDate) {
   return iso;
 }
 
+// "19/08/2026, 21/08/2026" -> ['2026-08-19', '2026-08-21']. Throws parseDateUK's error on the first bad entry.
+export function parseDatesList(raw) {
+  const dates = raw.split(',').map((s) => s.trim()).filter(Boolean).map(parseDateUK);
+  if (!dates.length) {
+    throw new Error('Enter at least one date, e.g. 19/08/2026 or 19/08/2026, 21/08/2026.');
+  }
+  return dates;
+}
+
 export function weekdayAbbr(isoDate) {
   return WEEKDAY_ABBR[new Date(`${isoDate}T00:00:00Z`).getUTCDay()];
 }

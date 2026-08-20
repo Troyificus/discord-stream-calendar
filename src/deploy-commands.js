@@ -11,10 +11,15 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName('calendar-setgame')
-    .setDescription('Set the game and time for one day (admin)')
-    .addStringOption((o) => o.setName('date').setDescription('DD/MM/YYYY').setRequired(true))
+    .setDescription('Set the game and time for one or more days (admin)')
+    .addStringOption((o) => o.setName('dates').setDescription('DD/MM/YYYY, or comma-separated for multiple').setRequired(true))
     .addStringOption((o) => o.setName('game').setDescription('Game name').setRequired(true))
     .addStringOption((o) => o.setName('time').setDescription('24hr UTC time, e.g. 19:00').setRequired(true)),
+
+  new SlashCommandBuilder()
+    .setName('calendar-cleargame')
+    .setDescription('Remove the game/time from one or more days, leaving signups intact (admin)')
+    .addStringOption((o) => o.setName('dates').setDescription('DD/MM/YYYY, or comma-separated for multiple').setRequired(true)),
 
   new SlashCommandBuilder()
     .setName('calendar-setrecurring')
