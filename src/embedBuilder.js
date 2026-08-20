@@ -89,9 +89,9 @@ export async function buildMonthlyEmbed() {
 
   for (const date of dates) {
     const day = days.find((d) => d.date === date);
-    if (!day || !day.game) continue;
+    const attendees = day?.attendance?.map((a) => a.members?.display_name).filter(Boolean) ?? [];
+    if (!day || (!day.game && !attendees.length)) continue;
 
-    const attendees = day.attendance?.map((a) => a.members?.display_name).filter(Boolean) ?? [];
     const guestCount = approvedGuests.filter((g) => g.stream_day_id === day.id).length;
     const filled = attendees.length + guestCount;
     const open = Math.max(day.capacity - filled, 0);

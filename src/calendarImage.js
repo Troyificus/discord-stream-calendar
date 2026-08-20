@@ -67,10 +67,11 @@ export function renderCalendarImage(title, monthDates, dayInfo) {
     ctx.font = 'bold 15px sans-serif';
     ctx.fillText(String(dayNum), x + 10, y + 22);
 
-    if (info?.game) {
+    if (info) {
       ctx.font = '12px sans-serif';
-      ctx.fillStyle = '#f2f3f5';
-      const gameText = info.game.length > 16 ? `${info.game.slice(0, 15)}…` : info.game;
+      ctx.fillStyle = info.game ? '#f2f3f5' : '#949ba4';
+      const gameLabel = info.game || 'game tbc';
+      const gameText = gameLabel.length > 16 ? `${gameLabel.slice(0, 15)}…` : gameLabel;
       ctx.fillText(gameText, x + 10, y + 42);
 
       ctx.font = '11px sans-serif';
