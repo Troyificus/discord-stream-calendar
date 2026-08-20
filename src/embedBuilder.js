@@ -112,13 +112,9 @@ export async function buildMonthlyEmbed() {
     .map((u) => `${dayLabel(u.date)} — ${u.game} · <t:${Math.floor(new Date(u.start_time_utc).getTime() / 1000)}:t>`)
     .join('\n');
 
-  const embed = new EmbedBuilder()
-    .setTitle(title)
-    .setColor(0x5865f2)
-    .setImage('attachment://calendar.png');
-
+  let content = `**${title}**`;
   if (upcomingText) {
-    embed.setDescription(`**Coming up (your local time):**\n${upcomingText}`);
+    content += `\n\n**Coming up (your local time):**\n${upcomingText}`;
   }
 
   const row = new ActionRowBuilder().addComponents(
@@ -126,7 +122,7 @@ export async function buildMonthlyEmbed() {
     new ButtonBuilder().setCustomId('request_guest').setLabel('Request to guest').setStyle(ButtonStyle.Primary)
   );
 
-  return { embeds: [embed], components: [row], files: [attachment] };
+  return { content, components: [row], files: [attachment], embeds: [] };
 }
 
 export async function refreshCalendarMessage(client) {
