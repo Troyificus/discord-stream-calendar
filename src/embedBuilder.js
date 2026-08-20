@@ -1,5 +1,6 @@
-import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } from 'discord.js';
 import { supabase } from './supabaseClient.js';
+import { renderCalendarImage } from './calendarImage.js';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const WEEKDAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -83,39 +84,49 @@ export async function buildMonthlyEmbed() {
   const now = new Date();
   const title = `${MONTH_NAMES[now.getUTCMonth()]} ${now.getUTCFullYear()}`;
 
-  const lines = dates.map((date) => {
-    const day = days.find((d) => d.date === date);
-    const label = `**${dayLabel(date)}**`;
+  const dayInfo = new Map();
+  const upcoming = [];
 
-    if (!day || (!day.game && !day.attendance?.length)) {
-      return `${label} — no stream scheduled`;
-    }
+  for (const date of dates) {
+    const day = days.find((d) => d.date === date);
+    if (!day || !day.game) continue;
 
     const attendees = day.attendance?.map((a) => a.members?.display_name).filter(Boolean) ?? [];
     const guestCount = approvedGuests.filter((g) => g.stream_day_id === day.id).length;
     const filled = attendees.length + guestCount;
     const open = Math.max(day.capacity - filled, 0);
+    const whoText = attendees.length ? attendees.join(', ') : undefined;
 
-    const unixTime = day.start_time_utc ? Math.floor(new Date(day.start_time_utc).getTime() / 1000) : null;
-    const timeText = unixTime ? `<t:${unixTime}:t>` : 'time tbc';
-    const gameText = day.game || 'game tbc';
-    const whoText = attendees.length ? attendees.join(', ') : 'nobody yet';
-    const slotsText = open > 0 ? `${open} open` : 'full';
+    dayInfo.set(date, { game: day.game, start_time_utc: day.start_time_utc, who: whoText, open, full: open === 0 });
 
-    return `${label} — ${gameText} · ${timeText} · ${whoText} · ${slotsText}`;
-  });
+    if (day.start_time_utc && new Date(day.start_time_utc).getTime() > Date.now()) {
+      upcoming.push({ date, game: day.game, start_time_utc: day.start_time_utc });
+    }
+  }
+
+  const imageBuffer = renderCalendarImage(title, dates, dayInfo);
+  const attachment = new AttachmentBuilder(imageBuffer, { name: 'calendar.png' });
+
+  const upcomingText = upcoming
+    .slice(0, 3)
+    .map((u) => `${dayLabel(u.date)} — ${u.game} · <t:${Math.floor(new Date(u.start_time_utc).getTime() / 1000)}:t>`)
+    .join('\n');
 
   const embed = new EmbedBuilder()
     .setTitle(title)
     .setColor(0x5865f2)
-    .setDescription(lines.join('\n'));
+    .setImage('attachment://calendar.png');
+
+  if (upcomingText) {
+    embed.setDescription(`**Coming up (your local time):**\n${upcomingText}`);
+  }
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('manage_days').setLabel('Manage my days').setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId('request_guest').setLabel('Request to guest').setStyle(ButtonStyle.Primary)
   );
 
-  return { embeds: [embed], components: [row] };
+  return { embeds: [embed], components: [row], files: [attachment] };
 }
 
 export async function refreshCalendarMessage(client) {
