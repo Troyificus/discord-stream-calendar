@@ -1,6 +1,6 @@
 # Discord stream calendar
 
-Setup order: Supabase -> Discord -> Twitch -> get a Twitch refresh token -> fill in .env -> deploy commands -> run.
+Setup order: Supabase -> Discord -> fill in .env -> deploy commands -> run.
 
 ## 1. Supabase
 Run schema.sql in the Supabase SQL Editor (fill in your 5 members' Discord user IDs at the
@@ -12,49 +12,35 @@ Create the application/bot in the Developer Portal, invite it with `bot` +
 `#calendar` Channel ID (Developer Mode -> right click -> Copy ID). Create a
 `Stream Lead` role for admins.
 
-## 3. Twitch app
-Register an app at dev.twitch.tv/console/apps with redirect URL
-`http://localhost:3000/callback`. Copy the Client ID and generate a Client Secret.
-
-## 4. Fill in .env
+## 3. Fill in .env
 ```
 cp .env.example .env
 nano .env
 ```
-Fill in everything except TWITCH_REFRESH_TOKEN and TWITCH_BROADCASTER_ID for now.
 
-## 5. Get your Twitch refresh token (run this locally, not in Docker)
+## 4. Register the slash commands
 ```
 npm install
-npm run get-twitch-token
-```
-Open http://localhost:3000 in your browser, log in with the streaming account, approve
-the scope. Your terminal prints a TWITCH_REFRESH_TOKEN line - paste it into .env.
-
-To get TWITCH_BROADCASTER_ID, run:
-```
-curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN" -H "Client-Id: YOUR_CLIENT_ID" \
-  "https://api.twitch.tv/helix/users?login=your_twitch_username"
-```
-(the access token printed just before the refresh token in your terminal works here too)
-and copy the "id" field from the response into .env.
-
-## 6. Register the slash commands
-```
 npm run deploy-commands
 ```
+Run this again any time a command's options change (not needed for ordinary code changes).
 
-## 7. Build and run with Docker
+## 5. Build and run with Docker
 ```
 docker compose up -d --build
 docker compose logs -f
 ```
 
-## 8. Post the calendar
-In your #calendar channel, run `/calendar-post`. Then try:
-- `/calendar-setgame date:2026-08-14 game:Balatro time:19:00`
-- `/calendar-setcapacity date:2026-08-14 capacity:6`
+## 6. Post the calendar
+In your #calendar channel, run `/calendar-post`. It shows the whole current month, one
+line per day. Then try:
+- `/calendar-setgame date:19/08/2026 game:Balatro time:19:00` - one-off, single day
+- `/calendar-setrecurring weekday:Monday game:"Helldivers 2" time:19:00` - sets every
+  matching weekday this month in one go
+- `/calendar-setcapacity date:19/08/2026 capacity:6`
 - `/calendar-requests` to review pending guest requests, oldest first
+
+All dates in commands and on the calendar use DD/MM/YYYY.
 
 ## Everyday commands
 | What | Command |

@@ -10,10 +10,19 @@ import {
   MessageFlags
 } from 'discord.js';
 import { supabase } from './supabaseClient.js';
-import { pushSegmentToTwitch } from './twitchClient.js';
-import { buildWeeklyEmbed, refreshCalendarMessage, getWeekDates, formatDateUK, parseDateUK } from './embedBuilder.js';
+import {
+  refreshCalendarMessage,
+  getMonthDates,
+  getOpenDates,
+  chunkArray,
+  dayLabel,
+  formatDateUK,
+  parseDateUK
+} from './embedBuilder.js';
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+
+const WEEKDAY_INDEX = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
 
 function isAdmin(interaction) {
   const roleName = process.env.DISCORD_ADMIN_ROLE_NAME;
@@ -25,6 +34,10 @@ async function getOrCreateDay(date) {
   if (existing) return existing;
   const { data: created } = await supabase.from('stream_days').insert({ date }).select().single();
   return created;
+}
+
+function chunkLabel(chunk) {
+  return chunk.length === 1 ? dayLabel(chunk[0]) : `${formatDateUK(chunk[0])} - ${formatDateUK(chunk[chunk.length - 1])}`;
 }
 
 client.once('ready', () => {
@@ -58,26 +71,29 @@ client.on('interactionCreate', async (interaction) => {
 
         const startTimeUtc = new Date(`${date}T${time}:00Z`).toISOString();
         const day = await getOrCreateDay(date);
-
-        const { data: updated } = await supabase
-          .from('stream_days')
-          .update({ game, start_time_utc: startTimeUtc })
-          .eq('id', day.id)
-          .select()
-          .single();
-
-        try {
-          const segmentId = await pushSegmentToTwitch(updated);
-          if (segmentId !== updated.twitch_segment_id) {
-            await supabase.from('stream_days').update({ twitch_segment_id: segmentId }).eq('id', updated.id);
-          }
-        } catch (err) {
-          console.error('Twitch push failed:', err);
-          await interaction.followUp({ content: `Saved, but the Twitch push failed: ${err.message}`, flags: MessageFlags.Ephemeral });
-        }
+        await supabase.from('stream_days').update({ game, start_time_utc: startTimeUtc }).eq('id', day.id);
 
         await refreshCalendarMessage(client);
         return interaction.editReply(`Set ${formatDateUK(date)} to ${game} at ${time} UTC.`);
+      }
+
+      if (interaction.commandName === 'calendar-setrecurring') {
+        const weekday = interaction.options.getString('weekday');
+        const game = interaction.options.getString('game');
+        const time = interaction.options.getString('time');
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+        const targetIndex = WEEKDAY_INDEX[weekday];
+        const matches = getMonthDates().filter((d) => new Date(`${d}T00:00:00Z`).getUTCDay() === targetIndex);
+
+        for (const date of matches) {
+          const startTimeUtc = new Date(`${date}T${time}:00Z`).toISOString();
+          const day = await getOrCreateDay(date);
+          await supabase.from('stream_days').update({ game, start_time_utc: startTimeUtc }).eq('id', day.id);
+        }
+
+        await refreshCalendarMessage(client);
+        return interaction.editReply(`Set ${game} at ${time} UTC for every ${weekday} this month (${matches.length} day${matches.length === 1 ? '' : 's'}).`);
       }
 
       if (interaction.commandName === 'calendar-setcapacity') {
@@ -121,8 +137,6 @@ client.on('interactionCreate', async (interaction) => {
 
     // ---------- Buttons ----------
     if (interaction.isButton()) {
-      const [action, ...rest] = interaction.customId.split('_');
-
       if (interaction.customId === 'manage_days') {
         const { data: member } = await supabase
           .from('members')
@@ -134,35 +148,27 @@ client.on('interactionCreate', async (interaction) => {
           return interaction.reply({ content: 'You\'re not on the core roster, so this button isn\'t for you - try "Request to guest" instead.', flags: MessageFlags.Ephemeral });
         }
 
-        const dates = getWeekDates();
+        const chunks = chunkArray(getMonthDates());
         const menu = new StringSelectMenuBuilder()
-          .setCustomId('select_day_manage')
-          .setPlaceholder('Pick a date')
-          .addOptions(dates.map((d) => ({ label: formatDateUK(d), value: d })));
+          .setCustomId('select_chunk_manage')
+          .setPlaceholder('Pick a week')
+          .addOptions(chunks.map((chunk, i) => ({ label: chunkLabel(chunk), value: String(i) })));
 
         return interaction.reply({ components: [new ActionRowBuilder().addComponents(menu)], flags: MessageFlags.Ephemeral });
       }
 
       if (interaction.customId === 'request_guest') {
-        const dates = getWeekDates();
-        const { data: days } = await supabase.from('stream_days').select('*, attendance(id)').in('date', dates);
-        const { data: approved } = await supabase.from('guest_requests').select('stream_day_id').eq('status', 'approved');
-
-        const openDates = dates.filter((date) => {
-          const day = days?.find((d) => d.date === date);
-          if (!day) return true;
-          const filled = (day.attendance?.length ?? 0) + (approved?.filter((g) => g.stream_day_id === day.id).length ?? 0);
-          return filled < day.capacity;
-        });
+        const openDates = await getOpenDates(getMonthDates());
 
         if (!openDates.length) {
-          return interaction.reply({ content: 'No open slots this week.', flags: MessageFlags.Ephemeral });
+          return interaction.reply({ content: 'No open slots this month.', flags: MessageFlags.Ephemeral });
         }
 
+        const chunks = chunkArray(openDates);
         const menu = new StringSelectMenuBuilder()
-          .setCustomId('select_day_guest')
-          .setPlaceholder('Pick a date')
-          .addOptions(openDates.map((d) => ({ label: formatDateUK(d), value: d })));
+          .setCustomId('select_chunk_guest')
+          .setPlaceholder('Pick a week')
+          .addOptions(chunks.map((chunk, i) => ({ label: chunkLabel(chunk), value: String(i) })));
 
         return interaction.reply({ components: [new ActionRowBuilder().addComponents(menu)], flags: MessageFlags.Ephemeral });
       }
@@ -214,6 +220,27 @@ client.on('interactionCreate', async (interaction) => {
 
     // ---------- Select menus ----------
     if (interaction.isStringSelectMenu()) {
+      if (interaction.customId === 'select_chunk_manage') {
+        const chunks = chunkArray(getMonthDates());
+        const chunk = chunks[Number(interaction.values[0])];
+        const menu = new StringSelectMenuBuilder()
+          .setCustomId('select_day_manage')
+          .setPlaceholder('Pick a date')
+          .addOptions(chunk.map((d) => ({ label: dayLabel(d), value: d })));
+        return interaction.update({ content: 'Pick a date:', components: [new ActionRowBuilder().addComponents(menu)] });
+      }
+
+      if (interaction.customId === 'select_chunk_guest') {
+        const openDates = await getOpenDates(getMonthDates());
+        const chunks = chunkArray(openDates);
+        const chunk = chunks[Number(interaction.values[0])];
+        const menu = new StringSelectMenuBuilder()
+          .setCustomId('select_day_guest')
+          .setPlaceholder('Pick a date')
+          .addOptions(chunk.map((d) => ({ label: dayLabel(d), value: d })));
+        return interaction.update({ content: 'Pick a date:', components: [new ActionRowBuilder().addComponents(menu)] });
+      }
+
       const date = interaction.values[0];
 
       if (interaction.customId === 'select_day_manage') {

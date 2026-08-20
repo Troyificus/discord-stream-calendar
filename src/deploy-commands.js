@@ -1,15 +1,25 @@
 import 'dotenv/config';
 import { REST, Routes, SlashCommandBuilder } from 'discord.js';
 
+const WEEKDAY_CHOICES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+  .map((name) => ({ name, value: name.toLowerCase() }));
+
 const commands = [
   new SlashCommandBuilder()
     .setName('calendar-post')
-    .setDescription('Post or refresh this week\'s calendar (admin)'),
+    .setDescription('Post or refresh this month\'s calendar (admin)'),
 
   new SlashCommandBuilder()
     .setName('calendar-setgame')
-    .setDescription('Set the game and time for a day (admin)')
+    .setDescription('Set the game and time for one day (admin)')
     .addStringOption((o) => o.setName('date').setDescription('DD/MM/YYYY').setRequired(true))
+    .addStringOption((o) => o.setName('game').setDescription('Game name').setRequired(true))
+    .addStringOption((o) => o.setName('time').setDescription('24hr UTC time, e.g. 19:00').setRequired(true)),
+
+  new SlashCommandBuilder()
+    .setName('calendar-setrecurring')
+    .setDescription('Set the game and time for every occurrence of a weekday this month (admin)')
+    .addStringOption((o) => o.setName('weekday').setDescription('Day of the week').setRequired(true).addChoices(...WEEKDAY_CHOICES))
     .addStringOption((o) => o.setName('game').setDescription('Game name').setRequired(true))
     .addStringOption((o) => o.setName('time').setDescription('24hr UTC time, e.g. 19:00').setRequired(true)),
 
