@@ -19,6 +19,11 @@ export function formatDateUK(isoDate) {
   return `${day}/${month}/${year}`;
 }
 
+export function parseDateUK(ukDate) {
+  const [day, month, year] = ukDate.split('/');
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+}
+
 export async function buildWeeklyEmbed() {
   const dates = getWeekDates();
 

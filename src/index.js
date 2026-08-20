@@ -10,7 +10,7 @@ import {
 } from 'discord.js';
 import { supabase } from './supabaseClient.js';
 import { pushSegmentToTwitch } from './twitchClient.js';
-import { buildWeeklyEmbed, refreshCalendarMessage, getWeekDates, formatDateUK } from './embedBuilder.js';
+import { buildWeeklyEmbed, refreshCalendarMessage, getWeekDates, formatDateUK, parseDateUK } from './embedBuilder.js';
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
@@ -45,7 +45,7 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       if (interaction.commandName === 'calendar-setgame') {
-        const date = interaction.options.getString('date');
+        const date = parseDateUK(interaction.options.getString('date'));
         const game = interaction.options.getString('game');
         const time = interaction.options.getString('time');
         await interaction.deferReply({ ephemeral: true });
@@ -75,7 +75,7 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       if (interaction.commandName === 'calendar-setcapacity') {
-        const date = interaction.options.getString('date');
+        const date = parseDateUK(interaction.options.getString('date'));
         const capacity = interaction.options.getInteger('capacity');
         await interaction.deferReply({ ephemeral: true });
 

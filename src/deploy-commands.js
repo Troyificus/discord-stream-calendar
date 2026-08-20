@@ -9,14 +9,14 @@ const commands = [
   new SlashCommandBuilder()
     .setName('calendar-setgame')
     .setDescription('Set the game and time for a day (admin)')
-    .addStringOption((o) => o.setName('date').setDescription('YYYY-MM-DD').setRequired(true))
+    .addStringOption((o) => o.setName('date').setDescription('DD/MM/YYYY').setRequired(true))
     .addStringOption((o) => o.setName('game').setDescription('Game name').setRequired(true))
     .addStringOption((o) => o.setName('time').setDescription('24hr UTC time, e.g. 19:00').setRequired(true)),
 
   new SlashCommandBuilder()
     .setName('calendar-setcapacity')
     .setDescription('Set how many people can play on a day (admin)')
-    .addStringOption((o) => o.setName('date').setDescription('YYYY-MM-DD').setRequired(true))
+    .addStringOption((o) => o.setName('date').setDescription('DD/MM/YYYY').setRequired(true))
     .addIntegerOption((o) => o.setName('capacity').setDescription('Number of slots').setRequired(true)),
 
   new SlashCommandBuilder()
