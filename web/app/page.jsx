@@ -60,7 +60,7 @@ export default async function CalendarPage() {
               <input type="date" name="date" min={dates[0]} max={dates[dates.length - 1]} required />
               <input type="text" name="game" placeholder="Game" required />
               <input type="time" name="time" required />
-              <span className="hint">Time is UTC</span>
+              <span className="hint">Time is UK time</span>
               <button type="submit">Save</button>
             </form>
 
@@ -90,7 +90,7 @@ export default async function CalendarPage() {
               </select>
               <input type="text" name="game" placeholder="Game" required />
               <input type="time" name="time" required />
-              <span className="hint">Time is UTC</span>
+              <span className="hint">Time is UK time</span>
               <button type="submit">Save</button>
             </form>
           </div>

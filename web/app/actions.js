@@ -15,15 +15,33 @@ function check(error, context) {
   if (error) throw new Error(`${context}: ${error.message}`);
 }
 
+function getUKOffsetMinutes(date) {
+  // Compare noon UTC on that date to how it reads in Europe/London, to get the current
+  // BST/GMT offset for that specific date (handles the March/October changeover correctly).
+  const utcNoon = new Date(`${date}T12:00:00Z`);
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).formatToParts(utcNoon);
+  const hour = Number(parts.find((p) => p.type === 'hour').value);
+  const minute = Number(parts.find((p) => p.type === 'minute').value);
+  return hour * 60 + minute - 12 * 60; // +60 during BST, 0 during GMT
+}
+
+// Admin enters UK wall-clock time (matching everything else in the UI) - this converts
+// it to the correct UTC instant to store, accounting for BST/GMT automatically.
 function parseTimeToUtc(date, time) {
   if (!/^\d{2}:\d{2}$/.test(time || '')) {
     throw new Error(`"${time}" isn't a valid time - use the time picker (HH:MM).`);
   }
-  const d = new Date(`${date}T${time}:00Z`);
-  if (Number.isNaN(d.getTime())) {
+  const naiveUtc = new Date(`${date}T${time}:00Z`);
+  if (Number.isNaN(naiveUtc.getTime())) {
     throw new Error(`"${date} ${time}" isn't a valid date/time.`);
   }
-  return d.toISOString();
+  const offsetMinutes = getUKOffsetMinutes(date);
+  return new Date(naiveUtc.getTime() - offsetMinutes * 60_000).toISOString();
 }
 
 async function getOrCreateDay(date) {
