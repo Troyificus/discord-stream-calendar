@@ -154,7 +154,7 @@ export default async function CalendarPage() {
                 </div>
               )}
 
-              {session?.isCore && (
+              {session?.isCore && day?.game && (
                 <form action={isIn ? leaveDay.bind(null, date) : joinDay.bind(null, date)}>
                   <button type="submit" className={isIn ? 'btn leave' : 'btn join'}>
                     {isIn ? 'Leave' : 'Join'}
