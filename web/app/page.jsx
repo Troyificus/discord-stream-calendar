@@ -1,8 +1,9 @@
 import { cookies } from 'next/headers';
 import { verifySessionToken } from '../lib/session.js';
 import { supabaseAdmin } from '../lib/supabaseAdmin.js';
-import { getMonthDates, getMonthTitle, formatUKTime } from '../lib/calendar.js';
-import { joinDay, leaveDay, requestGuest } from './actions.js';
+import { getMonthDates, getMonthTitle, formatUKTime, formatDateUK } from '../lib/calendar.js';
+import { isAdmin } from '../lib/admin.js';
+import { joinDay, leaveDay, requestGuest, setGame, clearGame, setCapacity, setRecurring, approveRequest, denyRequest } from './actions.js';
 
 export default async function CalendarPage() {
   const cookieStore = await cookies();
@@ -24,6 +25,17 @@ export default async function CalendarPage() {
     isMember = !!member;
   }
 
+  const admin = isAdmin(session);
+  let pendingRequests = [];
+  if (admin) {
+    const { data } = await supabaseAdmin
+      .from('guest_requests')
+      .select('*, stream_days(date)')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true });
+    pendingRequests = data ?? [];
+  }
+
   const firstWeekday = (new Date(`${dates[0]}T00:00:00Z`).getUTCDay() + 6) % 7;
 
   return (
@@ -39,6 +51,70 @@ export default async function CalendarPage() {
           <a className="signin" href="/api/auth/login">Sign in with Discord</a>
         )}
       </header>
+
+      {admin && (
+        <section className="admin-panel">
+          <h2>Admin</h2>
+
+          <div className="admin-forms">
+            <form action={setGame} className="admin-form">
+              <h3>Set a day</h3>
+              <input type="date" name="date" min={dates[0]} max={dates[dates.length - 1]} required />
+              <input type="text" name="game" placeholder="Game" required />
+              <input type="time" name="time" required />
+              <span className="hint">Time is UTC</span>
+              <button type="submit">Save</button>
+            </form>
+
+            <form action={clearGame} className="admin-form">
+              <h3>Clear a day</h3>
+              <input type="date" name="date" min={dates[0]} max={dates[dates.length - 1]} required />
+              <button type="submit">Clear</button>
+            </form>
+
+            <form action={setCapacity} className="admin-form">
+              <h3>Set capacity</h3>
+              <input type="date" name="date" min={dates[0]} max={dates[dates.length - 1]} required />
+              <input type="number" name="capacity" min="1" max="20" defaultValue="4" required />
+              <button type="submit">Save</button>
+            </form>
+
+            <form action={setRecurring} className="admin-form">
+              <h3>Set every weekday this month</h3>
+              <select name="weekday" required defaultValue="monday">
+                <option value="monday">Monday</option>
+                <option value="tuesday">Tuesday</option>
+                <option value="wednesday">Wednesday</option>
+                <option value="thursday">Thursday</option>
+                <option value="friday">Friday</option>
+                <option value="saturday">Saturday</option>
+                <option value="sunday">Sunday</option>
+              </select>
+              <input type="text" name="game" placeholder="Game" required />
+              <input type="time" name="time" required />
+              <span className="hint">Time is UTC</span>
+              <button type="submit">Save</button>
+            </form>
+          </div>
+
+          {pendingRequests.length > 0 && (
+            <div className="requests">
+              <h3>Pending guest requests</h3>
+              {pendingRequests.map((r) => (
+                <div key={r.id} className="request-row">
+                  <span>{r.display_name} — {formatDateUK(r.stream_days.date)}</span>
+                  <form action={approveRequest.bind(null, r.id)}>
+                    <button type="submit" className="btn join">Approve</button>
+                  </form>
+                  <form action={denyRequest.bind(null, r.id)}>
+                    <button type="submit" className="btn leave">Deny</button>
+                  </form>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="grid">
         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (

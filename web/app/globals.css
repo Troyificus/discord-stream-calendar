@@ -130,3 +130,76 @@ main {
   .cell { min-height: 100px; font-size: 0.8rem; padding: 8px; }
   .topbar h1 { font-size: 1.5rem; }
 }
+
+.admin-panel {
+  background: var(--panel);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.admin-panel h2 {
+  margin: 0 0 16px;
+  font-size: 1.1rem;
+  color: var(--accent-light);
+}
+
+.admin-forms {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.admin-form {
+  background: var(--cell);
+  border-radius: 6px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-form h3 {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.admin-form input,
+.admin-form select {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 0.85rem;
+}
+
+.admin-form .hint { font-size: 0.75rem; color: var(--muted); }
+
+.admin-form button {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.requests {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.requests h3 { margin: 0 0 10px; font-size: 0.9rem; color: var(--muted); }
+
+.request-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.request-row .btn { padding: 5px 10px; }

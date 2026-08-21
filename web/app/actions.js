@@ -4,6 +4,8 @@ import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { verifySessionToken } from '../lib/session.js';
 import { supabaseAdmin } from '../lib/supabaseAdmin.js';
+import { isAdmin } from '../lib/admin.js';
+import { getMonthDates, WEEKDAY_INDEX } from '../lib/calendar.js';
 
 async function getSessionUser() {
   const cookieStore = await cookies();
@@ -49,5 +51,74 @@ export async function requestGuest(date) {
     discord_user_id: user.id,
     display_name: user.username
   });
+  revalidatePath('/');
+}
+
+// ---------- Admin ----------
+
+export async function setGame(formData) {
+  const user = await getSessionUser();
+  if (!isAdmin(user)) throw new Error('Admin only.');
+
+  const date = formData.get('date');
+  const game = formData.get('game');
+  const time = formData.get('time');
+  const startTimeUtc = new Date(`${date}T${time}:00Z`).toISOString();
+
+  const day = await getOrCreateDay(date);
+  await supabaseAdmin.from('stream_days').update({ game, start_time_utc: startTimeUtc }).eq('id', day.id);
+  revalidatePath('/');
+}
+
+export async function clearGame(formData) {
+  const user = await getSessionUser();
+  if (!isAdmin(user)) throw new Error('Admin only.');
+
+  const date = formData.get('date');
+  const day = await getOrCreateDay(date);
+  await supabaseAdmin.from('stream_days').update({ game: null, start_time_utc: null }).eq('id', day.id);
+  revalidatePath('/');
+}
+
+export async function setCapacity(formData) {
+  const user = await getSessionUser();
+  if (!isAdmin(user)) throw new Error('Admin only.');
+
+  const date = formData.get('date');
+  const capacity = Number(formData.get('capacity'));
+  const day = await getOrCreateDay(date);
+  await supabaseAdmin.from('stream_days').update({ capacity }).eq('id', day.id);
+  revalidatePath('/');
+}
+
+export async function setRecurring(formData) {
+  const user = await getSessionUser();
+  if (!isAdmin(user)) throw new Error('Admin only.');
+
+  const weekday = formData.get('weekday');
+  const game = formData.get('game');
+  const time = formData.get('time');
+  const targetIndex = WEEKDAY_INDEX[weekday];
+  const matches = getMonthDates().filter((d) => new Date(`${d}T00:00:00Z`).getUTCDay() === targetIndex);
+
+  for (const date of matches) {
+    const startTimeUtc = new Date(`${date}T${time}:00Z`).toISOString();
+    const day = await getOrCreateDay(date);
+    await supabaseAdmin.from('stream_days').update({ game, start_time_utc: startTimeUtc }).eq('id', day.id);
+  }
+  revalidatePath('/');
+}
+
+export async function approveRequest(id) {
+  const user = await getSessionUser();
+  if (!isAdmin(user)) throw new Error('Admin only.');
+  await supabaseAdmin.from('guest_requests').update({ status: 'approved' }).eq('id', id);
+  revalidatePath('/');
+}
+
+export async function denyRequest(id) {
+  const user = await getSessionUser();
+  if (!isAdmin(user)) throw new Error('Admin only.');
+  await supabaseAdmin.from('guest_requests').update({ status: 'denied' }).eq('id', id);
   revalidatePath('/');
 }

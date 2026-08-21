@@ -10,28 +10,6 @@ export function formatDateUK(isoDate) {
   return `${day}/${month}/${year}`;
 }
 
-export function parseDateUK(ukDate) {
-  const match = ukDate.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (!match) {
-    throw new Error(`"${ukDate}" isn't a valid date - use DD/MM/YYYY, e.g. 19/08/2026.`);
-  }
-  const [, day, month, year] = match;
-  const iso = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-  if (Number.isNaN(new Date(iso).getTime())) {
-    throw new Error(`"${ukDate}" isn't a real date - use DD/MM/YYYY, e.g. 19/08/2026.`);
-  }
-  return iso;
-}
-
-// "19/08/2026, 21/08/2026" -> ['2026-08-19', '2026-08-21']. Throws parseDateUK's error on the first bad entry.
-export function parseDatesList(raw) {
-  const dates = raw.split(',').map((s) => s.trim()).filter(Boolean).map(parseDateUK);
-  if (!dates.length) {
-    throw new Error('Enter at least one date, e.g. 19/08/2026 or 19/08/2026, 21/08/2026.');
-  }
-  return dates;
-}
-
 export function weekdayAbbr(isoDate) {
   return WEEKDAY_ABBR[new Date(`${isoDate}T00:00:00Z`).getUTCDay()];
 }
@@ -52,13 +30,6 @@ export function getMonthDates() {
   });
 }
 
-// Splits an array into groups of `size` - used to keep select menus under Discord's 25-option cap.
-export function chunkArray(arr, size = 7) {
-  const chunks = [];
-  for (let i = 0; i < arr.length; i += size) chunks.push(arr.slice(i, i + size));
-  return chunks;
-}
-
 async function getDaysAndApprovedGuests(dates) {
   const { data: days } = await supabase
     .from('stream_days')
@@ -71,19 +42,6 @@ async function getDaysAndApprovedGuests(dates) {
     .eq('status', 'approved');
 
   return { days: days ?? [], approvedGuests: approvedGuests ?? [] };
-}
-
-function openSlotsFor(date, days, approvedGuests) {
-  const day = days.find((d) => d.date === date);
-  if (!day) return Infinity; // no row yet = never configured = treat as open
-  const attendees = day.attendance?.length ?? 0;
-  const guests = approvedGuests.filter((g) => g.stream_day_id === day.id).length;
-  return Math.max(day.capacity - attendees - guests, 0);
-}
-
-export async function getOpenDates(dates) {
-  const { days, approvedGuests } = await getDaysAndApprovedGuests(dates);
-  return dates.filter((date) => openSlotsFor(date, days, approvedGuests) > 0);
 }
 
 export async function buildMonthlyEmbed() {
@@ -127,8 +85,6 @@ export async function buildMonthlyEmbed() {
   }
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('manage_days').setLabel('Manage my days').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('request_guest').setLabel('Request to guest').setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setLabel('Open full calendar').setStyle(ButtonStyle.Link).setURL('https://calendar.rated16bit.uk')
   );
 
