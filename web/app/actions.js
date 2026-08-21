@@ -123,6 +123,14 @@ export async function clearGame(formData) {
   const day = await getOrCreateDay(date);
   const { error } = await supabaseAdmin.from('stream_days').update({ game: null, start_time_utc: null, updated_at: new Date().toISOString() }).eq('id', day.id);
   check(error, 'Clearing the game failed');
+
+  // No event, no attendees - clear anyone who'd signed up or requested to guest for it.
+  const { error: attendanceError } = await supabaseAdmin.from('attendance').delete().eq('stream_day_id', day.id);
+  check(attendanceError, 'Clearing signups failed');
+
+  const { error: requestsError } = await supabaseAdmin.from('guest_requests').delete().eq('stream_day_id', day.id);
+  check(requestsError, 'Clearing guest requests failed');
+
   revalidatePath('/');
 }
 
