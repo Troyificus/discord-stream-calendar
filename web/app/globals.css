@@ -106,18 +106,11 @@ main {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  counter-reset: who-order;
 }
 
 .who-row {
   font-size: 0.8rem;
   color: #b5bac1;
-}
-
-.who-row:not(.who-guest)::before {
-  counter-increment: who-order;
-  content: counter(who-order) '. ';
-  color: var(--muted);
 }
 
 .who-guest { color: var(--amber); font-style: italic; }

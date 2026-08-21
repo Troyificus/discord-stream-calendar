@@ -167,7 +167,7 @@ export default async function CalendarPage() {
                 </form>
               )}
 
-              {session && !session.isCore && open > 0 && (
+              {session && !session.isCore && day?.game && open > 0 && (
                 <form action={requestGuest.bind(null, date)}>
                   <button type="submit" className="btn guest">Request to guest</button>
                 </form>
