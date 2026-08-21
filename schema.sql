@@ -6,7 +6,8 @@ create table stream_days (
   date date not null unique,
   game text,
   start_time_utc timestamptz,
-  capacity int not null default 4
+  capacity int not null default 4,
+  updated_at timestamptz
 );
 
 create table attendance (

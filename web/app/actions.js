@@ -90,7 +90,7 @@ export async function setGame(formData) {
   const startTimeUtc = parseTimeToUtc(date, time);
 
   const day = await getOrCreateDay(date);
-  const { error } = await supabaseAdmin.from('stream_days').update({ game, start_time_utc: startTimeUtc }).eq('id', day.id);
+  const { error } = await supabaseAdmin.from('stream_days').update({ game, start_time_utc: startTimeUtc, updated_at: new Date().toISOString() }).eq('id', day.id);
   check(error, 'Saving the game failed');
   revalidatePath('/');
 }
@@ -103,7 +103,7 @@ export async function clearGame(formData) {
   if (!date) throw new Error('Pick a date.');
 
   const day = await getOrCreateDay(date);
-  const { error } = await supabaseAdmin.from('stream_days').update({ game: null, start_time_utc: null }).eq('id', day.id);
+  const { error } = await supabaseAdmin.from('stream_days').update({ game: null, start_time_utc: null, updated_at: new Date().toISOString() }).eq('id', day.id);
   check(error, 'Clearing the game failed');
   revalidatePath('/');
 }
@@ -118,7 +118,7 @@ export async function setCapacity(formData) {
   if (!Number.isInteger(capacity) || capacity < 1) throw new Error('Capacity must be a whole number of at least 1.');
 
   const day = await getOrCreateDay(date);
-  const { error } = await supabaseAdmin.from('stream_days').update({ capacity }).eq('id', day.id);
+  const { error } = await supabaseAdmin.from('stream_days').update({ capacity, updated_at: new Date().toISOString() }).eq('id', day.id);
   check(error, 'Saving capacity failed');
   revalidatePath('/');
 }
@@ -140,7 +140,7 @@ export async function setRecurring(formData) {
   for (const date of matches) {
     const startTimeUtc = parseTimeToUtc(date, time);
     const day = await getOrCreateDay(date);
-    const { error } = await supabaseAdmin.from('stream_days').update({ game, start_time_utc: startTimeUtc }).eq('id', day.id);
+    const { error } = await supabaseAdmin.from('stream_days').update({ game, start_time_utc: startTimeUtc, updated_at: new Date().toISOString() }).eq('id', day.id);
     check(error, `Saving ${date} failed`);
   }
   revalidatePath('/');
