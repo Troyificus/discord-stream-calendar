@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { verifySessionToken } from '../lib/session.js';
 import { supabaseAdmin } from '../lib/supabaseAdmin.js';
-import { getMonthDates, WEEKDAY_INDEX } from '../lib/calendar.js';
+import { getMonthDates, WEEKDAY_INDEX, formatDateUK } from '../lib/calendar.js';
 
 async function getSessionUser() {
   const cookieStore = await cookies();
@@ -92,6 +92,21 @@ export async function requestGuest(date) {
   });
   check(error, 'Sending the request failed');
   revalidatePath('/');
+
+  if (process.env.DISCORD_GUEST_REQUEST_WEBHOOK_URL) {
+    try {
+      await fetch(process.env.DISCORD_GUEST_REQUEST_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: `**${user.username}** wants to guest on **${formatDateUK(date)}** - review it in the calendar's Admin panel.`
+        })
+      });
+    } catch (err) {
+      // Notification failing shouldn't block the actual request from being saved.
+      console.error('Guest request webhook failed:', err);
+    }
+  }
 }
 
 // ---------- Admin ----------
