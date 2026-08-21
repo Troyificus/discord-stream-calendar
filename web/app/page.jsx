@@ -2,7 +2,6 @@ import { cookies } from 'next/headers';
 import { verifySessionToken } from '../lib/session.js';
 import { supabaseAdmin } from '../lib/supabaseAdmin.js';
 import { getMonthDates, getMonthTitle, formatUKTime, formatDateUK } from '../lib/calendar.js';
-import { isAdmin } from '../lib/admin.js';
 import { joinDay, leaveDay, requestGuest, setGame, clearGame, setCapacity, setRecurring, approveRequest, denyRequest } from './actions.js';
 
 export default async function CalendarPage() {
@@ -12,20 +11,14 @@ export default async function CalendarPage() {
   const dates = getMonthDates();
   const { data: days } = await supabaseAdmin
     .from('stream_days')
-    .select('*, attendance(member_id, members(display_name, discord_user_id))')
+    .select('*, attendance(discord_user_id, display_name)')
     .in('date', dates);
   const { data: approvedGuests } = await supabaseAdmin
     .from('guest_requests')
     .select('stream_day_id, display_name')
     .eq('status', 'approved');
 
-  let isMember = false;
-  if (session) {
-    const { data: member } = await supabaseAdmin.from('members').select('id').eq('discord_user_id', session.id).single();
-    isMember = !!member;
-  }
-
-  const admin = isAdmin(session);
+  const admin = session?.isAdmin ?? false;
   let pendingRequests = [];
   if (admin) {
     const { data } = await supabaseAdmin
@@ -127,7 +120,7 @@ export default async function CalendarPage() {
 
         {dates.map((date) => {
           const day = days?.find((d) => d.date === date);
-          const attendees = day?.attendance?.map((a) => a.members).filter(Boolean) ?? [];
+          const attendees = day?.attendance ?? [];
           const guestNames = approvedGuests?.filter((g) => g.stream_day_id === day?.id).map((g) => g.display_name) ?? [];
           const capacity = day?.capacity ?? 4;
           const open = Math.max(capacity - attendees.length - guestNames.length, 0);
@@ -156,7 +149,7 @@ export default async function CalendarPage() {
                 </div>
               )}
 
-              {session && isMember && (
+              {session?.isCore && (
                 <form action={isIn ? leaveDay.bind(null, date) : joinDay.bind(null, date)}>
                   <button type="submit" className={isIn ? 'btn leave' : 'btn join'}>
                     {isIn ? 'Leave' : 'Join'}
@@ -164,7 +157,7 @@ export default async function CalendarPage() {
                 </form>
               )}
 
-              {session && !isMember && open > 0 && (
+              {session && !session.isCore && open > 0 && (
                 <form action={requestGuest.bind(null, date)}>
                   <button type="submit" className="btn guest">Request to guest</button>
                 </form>

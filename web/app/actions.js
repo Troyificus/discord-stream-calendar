@@ -4,7 +4,6 @@ import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { verifySessionToken } from '../lib/session.js';
 import { supabaseAdmin } from '../lib/supabaseAdmin.js';
-import { isAdmin } from '../lib/admin.js';
 import { getMonthDates, WEEKDAY_INDEX } from '../lib/calendar.js';
 
 async function getSessionUser() {
@@ -22,22 +21,24 @@ async function getOrCreateDay(date) {
 export async function joinDay(date) {
   const user = await getSessionUser();
   if (!user) throw new Error('Not signed in.');
-  const { data: member } = await supabaseAdmin.from('members').select('*').eq('discord_user_id', user.id).single();
-  if (!member) throw new Error('Not on the core roster.');
+  if (!user.isCore) throw new Error('Not on the core roster.');
 
   const day = await getOrCreateDay(date);
-  await supabaseAdmin.from('attendance').upsert({ stream_day_id: day.id, member_id: member.id });
+  await supabaseAdmin.from('attendance').upsert({
+    stream_day_id: day.id,
+    discord_user_id: user.id,
+    display_name: user.username
+  });
   revalidatePath('/');
 }
 
 export async function leaveDay(date) {
   const user = await getSessionUser();
   if (!user) throw new Error('Not signed in.');
-  const { data: member } = await supabaseAdmin.from('members').select('*').eq('discord_user_id', user.id).single();
-  if (!member) throw new Error('Not on the core roster.');
+  if (!user.isCore) throw new Error('Not on the core roster.');
 
   const day = await getOrCreateDay(date);
-  await supabaseAdmin.from('attendance').delete().eq('stream_day_id', day.id).eq('member_id', member.id);
+  await supabaseAdmin.from('attendance').delete().eq('stream_day_id', day.id).eq('discord_user_id', user.id);
   revalidatePath('/');
 }
 
@@ -58,7 +59,7 @@ export async function requestGuest(date) {
 
 export async function setGame(formData) {
   const user = await getSessionUser();
-  if (!isAdmin(user)) throw new Error('Admin only.');
+  if (!user?.isAdmin) throw new Error('Admin only.');
 
   const date = formData.get('date');
   const game = formData.get('game');
@@ -72,7 +73,7 @@ export async function setGame(formData) {
 
 export async function clearGame(formData) {
   const user = await getSessionUser();
-  if (!isAdmin(user)) throw new Error('Admin only.');
+  if (!user?.isAdmin) throw new Error('Admin only.');
 
   const date = formData.get('date');
   const day = await getOrCreateDay(date);
@@ -82,7 +83,7 @@ export async function clearGame(formData) {
 
 export async function setCapacity(formData) {
   const user = await getSessionUser();
-  if (!isAdmin(user)) throw new Error('Admin only.');
+  if (!user?.isAdmin) throw new Error('Admin only.');
 
   const date = formData.get('date');
   const capacity = Number(formData.get('capacity'));
@@ -93,7 +94,7 @@ export async function setCapacity(formData) {
 
 export async function setRecurring(formData) {
   const user = await getSessionUser();
-  if (!isAdmin(user)) throw new Error('Admin only.');
+  if (!user?.isAdmin) throw new Error('Admin only.');
 
   const weekday = formData.get('weekday');
   const game = formData.get('game');
@@ -111,14 +112,14 @@ export async function setRecurring(formData) {
 
 export async function approveRequest(id) {
   const user = await getSessionUser();
-  if (!isAdmin(user)) throw new Error('Admin only.');
+  if (!user?.isAdmin) throw new Error('Admin only.');
   await supabaseAdmin.from('guest_requests').update({ status: 'approved' }).eq('id', id);
   revalidatePath('/');
 }
 
 export async function denyRequest(id) {
   const user = await getSessionUser();
-  if (!isAdmin(user)) throw new Error('Admin only.');
+  if (!user?.isAdmin) throw new Error('Admin only.');
   await supabaseAdmin.from('guest_requests').update({ status: 'denied' }).eq('id', id);
   revalidatePath('/');
 }

@@ -27,9 +27,29 @@ export async function GET(request) {
   });
   const user = await userRes.json();
 
+  // Look up their roles in your server - this is what decides core/admin status,
+  // not any list we maintain ourselves.
+  let roles = [];
+  let nick = null;
+  const memberRes = await fetch(`https://discord.com/api/users/@me/guilds/${process.env.DISCORD_GUILD_ID}/member`, {
+    headers: { Authorization: `Bearer ${tokenData.access_token}` }
+  });
+  if (memberRes.ok) {
+    const member = await memberRes.json();
+    roles = member.roles ?? [];
+    nick = member.nick ?? null;
+  }
+  // If memberRes isn't ok (e.g. they're not actually in the server), roles stays empty -
+  // they can still sign in and view/request as a guest, just with no special access.
+
+  const isCore = roles.includes(process.env.DISCORD_CORE_ROLE_ID);
+  const isAdmin = roles.includes(process.env.DISCORD_ADMIN_ROLE_ID);
+
   const session = createSessionToken({
     id: user.id,
-    username: user.username,
+    username: nick || user.username,
+    isCore,
+    isAdmin,
     exp: Date.now() + 30 * 24 * 60 * 60 * 1000 // 30 days
   });
 

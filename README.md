@@ -9,12 +9,16 @@ Two parts sharing one Supabase database:
   approve guest requests. See `web/README.md` for its own setup.
 
 ## Bot setup order
-1. Supabase - run `schema.sql` in the SQL Editor (fill in your 5 members' Discord user IDs first)
+1. Supabase - run `schema.sql` in the SQL Editor (already have a database? use
+   `migration_role_based_auth.sql` instead - see below)
 2. Discord - create the application/bot, invite it, grab the Application ID / Server ID / Channel ID
 3. `cp .env.example .env` and fill it in
 4. `npm install && npm run deploy-commands`
 5. `docker compose up -d --build`
 6. In your channel: `/calendar-post`
+
+Core-member and admin status are decided by actual Discord roles, checked live via OAuth on the
+website - not a list maintained anywhere. See `web/README.md`.
 
 ## Everyday commands
 | What | Command |

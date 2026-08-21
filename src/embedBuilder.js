@@ -33,7 +33,7 @@ export function getMonthDates() {
 async function getDaysAndApprovedGuests(dates) {
   const { data: days } = await supabase
     .from('stream_days')
-    .select('*, attendance(member_id, members(display_name))')
+    .select('*, attendance(discord_user_id, display_name)')
     .in('date', dates);
 
   const { data: approvedGuests } = await supabase
@@ -56,7 +56,7 @@ export async function buildMonthlyEmbed() {
 
   for (const date of dates) {
     const day = days.find((d) => d.date === date);
-    const attendees = day?.attendance?.map((a) => a.members?.display_name).filter(Boolean) ?? [];
+    const attendees = day?.attendance?.map((a) => a.display_name).filter(Boolean) ?? [];
     if (!day || (!day.game && !attendees.length)) continue;
 
     const guestCount = approvedGuests.filter((g) => g.stream_day_id === day.id).length;
