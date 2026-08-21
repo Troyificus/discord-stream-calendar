@@ -4,6 +4,8 @@ import { supabaseAdmin } from '../lib/supabaseAdmin.js';
 import { getMonthDates, getMonthTitle, formatUKTime, formatDateUK } from '../lib/calendar.js';
 import { joinDay, leaveDay, requestGuest, setGame, clearGame, setCapacity, setRecurring, approveRequest, denyRequest } from './actions.js';
 
+export const dynamic = 'force-dynamic';
+
 export default async function CalendarPage() {
   const cookieStore = await cookies();
   const session = verifySessionToken(cookieStore.get('session')?.value);
