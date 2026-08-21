@@ -11,10 +11,28 @@ async function getSessionUser() {
   return verifySessionToken(cookieStore.get('session')?.value);
 }
 
+function check(error, context) {
+  if (error) throw new Error(`${context}: ${error.message}`);
+}
+
+function parseTimeToUtc(date, time) {
+  if (!/^\d{2}:\d{2}$/.test(time || '')) {
+    throw new Error(`"${time}" isn't a valid time - use the time picker (HH:MM).`);
+  }
+  const d = new Date(`${date}T${time}:00Z`);
+  if (Number.isNaN(d.getTime())) {
+    throw new Error(`"${date} ${time}" isn't a valid date/time.`);
+  }
+  return d.toISOString();
+}
+
 async function getOrCreateDay(date) {
-  const { data: existing } = await supabaseAdmin.from('stream_days').select('*').eq('date', date).single();
+  const { data: existing, error: selectError } = await supabaseAdmin.from('stream_days').select('*').eq('date', date).maybeSingle();
+  check(selectError, 'Looking up that day failed');
   if (existing) return existing;
-  const { data: created } = await supabaseAdmin.from('stream_days').insert({ date }).select().single();
+
+  const { data: created, error: insertError } = await supabaseAdmin.from('stream_days').insert({ date }).select().single();
+  check(insertError, 'Creating that day failed');
   return created;
 }
 
@@ -24,11 +42,12 @@ export async function joinDay(date) {
   if (!user.isCore) throw new Error('Not on the core roster.');
 
   const day = await getOrCreateDay(date);
-  await supabaseAdmin.from('attendance').upsert({
+  const { error } = await supabaseAdmin.from('attendance').upsert({
     stream_day_id: day.id,
     discord_user_id: user.id,
     display_name: user.username
   });
+  check(error, 'Joining failed');
   revalidatePath('/');
 }
 
@@ -38,7 +57,8 @@ export async function leaveDay(date) {
   if (!user.isCore) throw new Error('Not on the core roster.');
 
   const day = await getOrCreateDay(date);
-  await supabaseAdmin.from('attendance').delete().eq('stream_day_id', day.id).eq('discord_user_id', user.id);
+  const { error } = await supabaseAdmin.from('attendance').delete().eq('stream_day_id', day.id).eq('discord_user_id', user.id);
+  check(error, 'Leaving failed');
   revalidatePath('/');
 }
 
@@ -47,11 +67,12 @@ export async function requestGuest(date) {
   if (!user) throw new Error('Not signed in.');
 
   const day = await getOrCreateDay(date);
-  await supabaseAdmin.from('guest_requests').insert({
+  const { error } = await supabaseAdmin.from('guest_requests').insert({
     stream_day_id: day.id,
     discord_user_id: user.id,
     display_name: user.username
   });
+  check(error, 'Sending the request failed');
   revalidatePath('/');
 }
 
@@ -64,10 +85,13 @@ export async function setGame(formData) {
   const date = formData.get('date');
   const game = formData.get('game');
   const time = formData.get('time');
-  const startTimeUtc = new Date(`${date}T${time}:00Z`).toISOString();
+  if (!date) throw new Error('Pick a date.');
+  if (!game) throw new Error('Enter a game.');
+  const startTimeUtc = parseTimeToUtc(date, time);
 
   const day = await getOrCreateDay(date);
-  await supabaseAdmin.from('stream_days').update({ game, start_time_utc: startTimeUtc }).eq('id', day.id);
+  const { error } = await supabaseAdmin.from('stream_days').update({ game, start_time_utc: startTimeUtc }).eq('id', day.id);
+  check(error, 'Saving the game failed');
   revalidatePath('/');
 }
 
@@ -76,8 +100,11 @@ export async function clearGame(formData) {
   if (!user?.isAdmin) throw new Error('Admin only.');
 
   const date = formData.get('date');
+  if (!date) throw new Error('Pick a date.');
+
   const day = await getOrCreateDay(date);
-  await supabaseAdmin.from('stream_days').update({ game: null, start_time_utc: null }).eq('id', day.id);
+  const { error } = await supabaseAdmin.from('stream_days').update({ game: null, start_time_utc: null }).eq('id', day.id);
+  check(error, 'Clearing the game failed');
   revalidatePath('/');
 }
 
@@ -87,8 +114,12 @@ export async function setCapacity(formData) {
 
   const date = formData.get('date');
   const capacity = Number(formData.get('capacity'));
+  if (!date) throw new Error('Pick a date.');
+  if (!Number.isInteger(capacity) || capacity < 1) throw new Error('Capacity must be a whole number of at least 1.');
+
   const day = await getOrCreateDay(date);
-  await supabaseAdmin.from('stream_days').update({ capacity }).eq('id', day.id);
+  const { error } = await supabaseAdmin.from('stream_days').update({ capacity }).eq('id', day.id);
+  check(error, 'Saving capacity failed');
   revalidatePath('/');
 }
 
@@ -99,13 +130,18 @@ export async function setRecurring(formData) {
   const weekday = formData.get('weekday');
   const game = formData.get('game');
   const time = formData.get('time');
+  if (!game) throw new Error('Enter a game.');
+  if (!(weekday in WEEKDAY_INDEX)) throw new Error(`"${weekday}" isn't a valid weekday.`);
+
   const targetIndex = WEEKDAY_INDEX[weekday];
   const matches = getMonthDates().filter((d) => new Date(`${d}T00:00:00Z`).getUTCDay() === targetIndex);
+  if (!matches.length) throw new Error(`No ${weekday}s left this month.`);
 
   for (const date of matches) {
-    const startTimeUtc = new Date(`${date}T${time}:00Z`).toISOString();
+    const startTimeUtc = parseTimeToUtc(date, time);
     const day = await getOrCreateDay(date);
-    await supabaseAdmin.from('stream_days').update({ game, start_time_utc: startTimeUtc }).eq('id', day.id);
+    const { error } = await supabaseAdmin.from('stream_days').update({ game, start_time_utc: startTimeUtc }).eq('id', day.id);
+    check(error, `Saving ${date} failed`);
   }
   revalidatePath('/');
 }
@@ -113,13 +149,15 @@ export async function setRecurring(formData) {
 export async function approveRequest(id) {
   const user = await getSessionUser();
   if (!user?.isAdmin) throw new Error('Admin only.');
-  await supabaseAdmin.from('guest_requests').update({ status: 'approved' }).eq('id', id);
+  const { error } = await supabaseAdmin.from('guest_requests').update({ status: 'approved' }).eq('id', id);
+  check(error, 'Approving failed');
   revalidatePath('/');
 }
 
 export async function denyRequest(id) {
   const user = await getSessionUser();
   if (!user?.isAdmin) throw new Error('Admin only.');
-  await supabaseAdmin.from('guest_requests').update({ status: 'denied' }).eq('id', id);
+  const { error } = await supabaseAdmin.from('guest_requests').update({ status: 'denied' }).eq('id', id);
+  check(error, 'Denying failed');
   revalidatePath('/');
 }
