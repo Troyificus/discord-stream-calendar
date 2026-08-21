@@ -9,8 +9,17 @@ function isAdmin(interaction) {
   return interaction.member?.roles?.cache?.some((r) => r.name === roleName) ?? false;
 }
 
+const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
+
+  // The website writes straight to Supabase and has no way to notify the bot,
+  // so poll on a timer rather than only refreshing on the /calendar-post command.
+  refreshCalendarMessage(client).catch((err) => console.error('Auto-refresh failed:', err));
+  setInterval(() => {
+    refreshCalendarMessage(client).catch((err) => console.error('Auto-refresh failed:', err));
+  }, REFRESH_INTERVAL_MS);
 });
 
 client.on('interactionCreate', async (interaction) => {
