@@ -11,14 +11,17 @@ export default async function CalendarPage() {
   const session = verifySessionToken(cookieStore.get('session')?.value);
 
   const dates = getMonthDates();
-  const { data: days } = await supabaseAdmin
+  const { data: days, error: daysError } = await supabaseAdmin
     .from('stream_days')
     .select('*, attendance(discord_user_id, display_name)')
     .in('date', dates);
-  const { data: approvedGuests } = await supabaseAdmin
+  if (daysError) throw new Error(`Loading the calendar failed: ${daysError.message}`);
+
+  const { data: approvedGuests, error: guestsError } = await supabaseAdmin
     .from('guest_requests')
     .select('stream_day_id, display_name')
     .eq('status', 'approved');
+  if (guestsError) throw new Error(`Loading guest data failed: ${guestsError.message}`);
 
   const admin = session?.isAdmin ?? false;
   let pendingRequests = [];
