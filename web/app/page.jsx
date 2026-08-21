@@ -13,7 +13,7 @@ export default async function CalendarPage() {
   const dates = getMonthDates();
   const { data: days, error: daysError } = await supabaseAdmin
     .from('stream_days')
-    .select('*, attendance(discord_user_id, display_name)')
+    .select('*, attendance(discord_user_id, display_name, created_at)')
     .in('date', dates);
   if (daysError) throw new Error(`Loading the calendar failed: ${daysError.message}`);
 
@@ -125,7 +125,7 @@ export default async function CalendarPage() {
 
         {dates.map((date) => {
           const day = days?.find((d) => d.date === date);
-          const attendees = day?.attendance ?? [];
+          const attendees = (day?.attendance ?? []).slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
           const guestNames = approvedGuests?.filter((g) => g.stream_day_id === day?.id).map((g) => g.display_name) ?? [];
           const capacity = day?.capacity ?? 4;
           const open = Math.max(capacity - attendees.length - guestNames.length, 0);
@@ -143,8 +143,13 @@ export default async function CalendarPage() {
               {!day?.start_time_utc && showTbc && <div className="meta">time tbc</div>}
 
               {(attendees.length > 0 || guestNames.length > 0) && (
-                <div className="meta who">
-                  {[...attendees.map((a) => a.display_name), ...guestNames.map((g) => `${g} (guest)`)].join(', ')}
+                <div className="who">
+                  {attendees.map((a) => (
+                    <div key={a.discord_user_id} className="who-row">{a.display_name}</div>
+                  ))}
+                  {guestNames.map((g, i) => (
+                    <div key={`guest-${i}`} className="who-row who-guest">{g} (guest)</div>
+                  ))}
                 </div>
               )}
 

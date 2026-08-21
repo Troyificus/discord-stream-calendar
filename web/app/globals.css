@@ -102,7 +102,25 @@ main {
 
 .meta { font-size: 0.85rem; color: var(--muted); }
 
-.who { color: #b5bac1; }
+.who {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  counter-reset: who-order;
+}
+
+.who-row {
+  font-size: 0.8rem;
+  color: #b5bac1;
+}
+
+.who-row:not(.who-guest)::before {
+  counter-increment: who-order;
+  content: counter(who-order) '. ';
+  color: var(--muted);
+}
+
+.who-guest { color: var(--amber); font-style: italic; }
 
 .status {
   font-weight: bold;
