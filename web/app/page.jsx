@@ -13,9 +13,9 @@ export const dynamic = 'force-dynamic';
 
 // TODO: swap in the real URLs
 const SOCIAL_LINKS = {
-  discord: '#',
-  youtube: '#',
-  twitch: '#'
+  discord: 'discord.gg/XKYRHXPcsU',
+  youtube: 'youtube.com/c/TNTNerds',
+  twitch: 'twitch.tv/tntnerds'
 };
 
 export default async function CalendarPage() {
