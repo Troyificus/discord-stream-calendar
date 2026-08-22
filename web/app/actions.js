@@ -54,6 +54,15 @@ async function getOrCreateDay(date) {
   return created;
 }
 
+async function deleteWebhookMessage(messageId) {
+  if (!process.env.DISCORD_GUEST_REQUEST_WEBHOOK_URL || !messageId) return;
+  try {
+    await fetch(`${process.env.DISCORD_GUEST_REQUEST_WEBHOOK_URL}/messages/${messageId}`, { method: 'DELETE' });
+  } catch (err) {
+    console.error('Deleting webhook message failed:', err);
+  }
+}
+
 export async function joinDay(date) {
   const user = await getSessionUser();
   if (!user) throw new Error('Not signed in.');
@@ -85,28 +94,53 @@ export async function requestGuest(date) {
   if (!user) throw new Error('Not signed in.');
 
   const day = await getOrCreateDay(date);
-  const { error } = await supabaseAdmin.from('guest_requests').insert({
-    stream_day_id: day.id,
-    discord_user_id: user.id,
-    display_name: user.username
-  });
+  const { data: inserted, error } = await supabaseAdmin
+    .from('guest_requests')
+    .insert({
+      stream_day_id: day.id,
+      discord_user_id: user.id,
+      display_name: user.username
+    })
+    .select()
+    .single();
   check(error, 'Sending the request failed');
   revalidatePath('/');
 
   if (process.env.DISCORD_GUEST_REQUEST_WEBHOOK_URL) {
     try {
-      await fetch(process.env.DISCORD_GUEST_REQUEST_WEBHOOK_URL, {
+      // ?wait=true makes Discord return the created message (including its id) instead of
+      // an empty response, so we can delete it later once the request is actioned.
+      const res = await fetch(`${process.env.DISCORD_GUEST_REQUEST_WEBHOOK_URL}?wait=true`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content: `**${user.username}** wants to guest on **${formatDateUK(date)}** - review it in the calendar's Admin panel.`
         })
       });
+      const message = await res.json();
+      if (message?.id) {
+        await supabaseAdmin.from('guest_requests').update({ discord_message_id: message.id }).eq('id', inserted.id);
+      }
     } catch (err) {
       // Notification failing shouldn't block the actual request from being saved.
       console.error('Guest request webhook failed:', err);
     }
   }
+}
+
+export async function leaveGuestSlot(date) {
+  const user = await getSessionUser();
+  if (!user) throw new Error('Not signed in.');
+
+  const day = await getOrCreateDay(date);
+  const { error } = await supabaseAdmin
+    .from('guest_requests')
+    .update({ status: 'denied' })
+    .eq('stream_day_id', day.id)
+    .eq('discord_user_id', user.id)
+    .eq('status', 'approved');
+  check(error, 'Leaving failed');
+  revalidatePath('/');
 }
 
 // ---------- Admin ----------
@@ -190,16 +224,20 @@ export async function setRecurring(formData) {
 export async function approveRequest(id) {
   const user = await getSessionUser();
   if (!user?.isAdmin) throw new Error('Admin only.');
+  const { data: existing } = await supabaseAdmin.from('guest_requests').select('discord_message_id').eq('id', id).single();
   const { error } = await supabaseAdmin.from('guest_requests').update({ status: 'approved' }).eq('id', id);
   check(error, 'Approving failed');
+  await deleteWebhookMessage(existing?.discord_message_id);
   revalidatePath('/');
 }
 
 export async function denyRequest(id) {
   const user = await getSessionUser();
   if (!user?.isAdmin) throw new Error('Admin only.');
+  const { data: existing } = await supabaseAdmin.from('guest_requests').select('discord_message_id').eq('id', id).single();
   const { error } = await supabaseAdmin.from('guest_requests').update({ status: 'denied' }).eq('id', id);
   check(error, 'Denying failed');
+  await deleteWebhookMessage(existing?.discord_message_id);
   revalidatePath('/');
 }
 

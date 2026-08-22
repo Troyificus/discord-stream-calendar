@@ -4,7 +4,7 @@ import { supabaseAdmin } from '../lib/supabaseAdmin.js';
 import { getMonthDates, getMonthTitle, formatUKTime, formatDateUK, dayLabel, todayISOInUK } from '../lib/calendar.js';
 import { getThumbnailMap } from '../lib/gameThumbnails.js';
 import {
-  joinDay, leaveDay, requestGuest,
+  joinDay, leaveDay, requestGuest, leaveGuestSlot,
   setGame, clearGame, setCapacity, setRecurring,
   approveRequest, denyRequest, uploadThumbnail
 } from './actions.js';
@@ -31,7 +31,7 @@ export default async function CalendarPage() {
 
   const { data: approvedGuests, error: guestsError } = await supabaseAdmin
     .from('guest_requests')
-    .select('stream_day_id, display_name')
+    .select('id, stream_day_id, display_name, discord_user_id')
     .eq('status', 'approved');
   if (guestsError) throw new Error(`Loading guest data failed: ${guestsError.message}`);
 
@@ -39,13 +39,21 @@ export default async function CalendarPage() {
 
   const admin = session?.isAdmin ?? false;
   let pendingRequests = [];
+  let approvedGuestsAdminList = [];
   if (admin) {
-    const { data } = await supabaseAdmin
+    const { data: pending } = await supabaseAdmin
       .from('guest_requests')
       .select('*, stream_days(date)')
       .eq('status', 'pending')
       .order('created_at', { ascending: true });
-    pendingRequests = data ?? [];
+    pendingRequests = pending ?? [];
+
+    const { data: approved } = await supabaseAdmin
+      .from('guest_requests')
+      .select('*, stream_days(date)')
+      .eq('status', 'approved')
+      .order('created_at', { ascending: true });
+    approvedGuestsAdminList = approved ?? [];
   }
 
   const firstWeekday = (new Date(`${dates[0]}T00:00:00Z`).getUTCDay() + 6) % 7;
@@ -158,6 +166,20 @@ export default async function CalendarPage() {
                   ))}
                 </div>
               )}
+
+              {approvedGuestsAdminList.length > 0 && (
+                <div className="requests">
+                  <h3>Approved guests</h3>
+                  {approvedGuestsAdminList.map((r) => (
+                    <div key={r.id} className="request-row">
+                      <span>{r.display_name} — {formatDateUK(r.stream_days.date)}</span>
+                      <form action={denyRequest.bind(null, r.id)}>
+                        <button type="submit" className="btn leave">Remove</button>
+                      </form>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           )}
 
@@ -175,6 +197,7 @@ export default async function CalendarPage() {
             {dates.map((date) => {
               const { day, attendees, guestNames, open, thumbnail } = dayStats.get(date);
               const isIn = session ? attendees.some((a) => a.discord_user_id === session.id) : false;
+              const myGuestSlot = session ? approvedGuests?.find((g) => g.stream_day_id === day?.id && g.discord_user_id === session.id) : null;
               const showTbc = day?.game || attendees.length > 0;
               const statusClass = !day?.game ? '' : open === 0 ? 'cell-full' : 'cell-scheduled';
               const nextClass = date === nextDate ? 'cell-next' : '';
@@ -221,7 +244,13 @@ export default async function CalendarPage() {
                     </form>
                   )}
 
-                  {session && !session.isCore && day?.game && open > 0 && (
+                  {session && !session.isCore && myGuestSlot && (
+                    <form action={leaveGuestSlot.bind(null, date)}>
+                      <button type="submit" className="btn leave">Leave</button>
+                    </form>
+                  )}
+
+                  {session && !session.isCore && !myGuestSlot && day?.game && open > 0 && (
                     <form action={requestGuest.bind(null, date)}>
                       <button type="submit" className="btn guest">Request to guest</button>
                     </form>
