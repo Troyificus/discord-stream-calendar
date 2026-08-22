@@ -1,6 +1,7 @@
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } from 'discord.js';
 import { supabase } from './supabaseClient.js';
 import { renderCalendarImage } from './calendarImage.js';
+import { getThumbnailMap } from './gameThumbnails.js';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const WEEKDAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -71,7 +72,8 @@ export async function buildMonthlyEmbed() {
     }
   }
 
-  const imageBuffer = renderCalendarImage(title, dates, dayInfo);
+  const thumbnails = await getThumbnailMap();
+  const imageBuffer = await renderCalendarImage(title, dates, dayInfo, thumbnails);
   const attachment = new AttachmentBuilder(imageBuffer, { name: 'calendar.png' });
 
   const upcomingText = upcoming
