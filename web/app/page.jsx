@@ -50,11 +50,8 @@ export default async function CalendarPage() {
 
   const firstWeekday = (new Date(`${dates[0]}T00:00:00Z`).getUTCDay() + 6) % 7;
 
-  // Pre-compute per-day stats once, reused by the grid, the next-deployment panel, and the stats card.
+  // Pre-compute per-day stats once, reused by the grid and the next-scheduled-stream panel.
   const dayStats = new Map();
-  let missionsPlanned = 0;
-  let totalSlots = 0;
-  let slotsOpen = 0;
 
   for (const date of dates) {
     const day = days?.find((d) => d.date === date);
@@ -66,16 +63,10 @@ export default async function CalendarPage() {
     const thumbnail = day?.game ? thumbnails[day.game.toLowerCase()] : undefined;
 
     dayStats.set(date, { day, attendees, guestNames, capacity, filled, open, thumbnail });
-
-    if (day?.game) {
-      missionsPlanned += 1;
-      totalSlots += capacity;
-      slotsOpen += open;
-    }
   }
 
   const today = todayISOInUK();
-  const nextDate = dates.find((d) => d >= today);
+  const nextDate = dates.find((d) => d >= today && dayStats.get(d).day?.game);
   const nextStats = nextDate ? dayStats.get(nextDate) : null;
 
   return (
@@ -150,6 +141,7 @@ export default async function CalendarPage() {
                   <h3>Add game thumbnail</h3>
                   <input type="text" name="tag" placeholder="Game name (must match exactly)" required />
                   <input type="file" name="file" accept="image/*" required />
+                  <span className="hint">Square works best (500×500px+) - it's cropped to fit, so keep the subject centered</span>
                   <button type="submit">Upload</button>
                 </form>
               </div>
@@ -244,40 +236,24 @@ export default async function CalendarPage() {
 
         <aside className="sidebar">
           <div className="next-card">
-            <h3>Next deployment</h3>
+            <h3>Next scheduled stream</h3>
             {nextDate ? (
               <>
                 <div className="next-date">{dayLabel(nextDate)}</div>
-                {nextStats.day?.game ? (
-                  <>
-                    <div
-                      className="next-thumb"
-                      style={nextStats.thumbnail ? { backgroundImage: `linear-gradient(to top, rgba(10,10,14,0.9) 0%, rgba(10,10,14,0.3) 60%, transparent 100%), url(${nextStats.thumbnail})` } : undefined}
-                    >
-                      <div className="next-thumb-title">{nextStats.day.game}</div>
-                    </div>
-                    <div className="meta">{formatUKTime(nextStats.day.start_time_utc)} UK</div>
-                    <div className={`badge-status ${nextStats.open === 0 ? 'full' : 'open'}`}>
-                      {nextStats.open === 0 ? 'FULL' : `${nextStats.open} OPEN`}
-                    </div>
-                  </>
-                ) : (
-                  <div className="next-empty">
-                    <div>No stream scheduled</div>
-                    <span className="hint">Check back for updates</span>
-                  </div>
-                )}
+                <div
+                  className="next-thumb"
+                  style={nextStats.thumbnail ? { backgroundImage: `linear-gradient(to top, rgba(10,10,14,0.9) 0%, rgba(10,10,14,0.3) 60%, transparent 100%), url(${nextStats.thumbnail})` } : undefined}
+                >
+                  <div className="next-thumb-title">{nextStats.day.game}</div>
+                </div>
+                <div className="meta">{formatUKTime(nextStats.day.start_time_utc)} UK</div>
+                <div className={`badge-status ${nextStats.open === 0 ? 'full' : 'open'}`}>
+                  {nextStats.open === 0 ? 'FULL' : `${nextStats.open} OPEN`}
+                </div>
               </>
             ) : (
               <div className="next-empty">Nothing left scheduled this month</div>
             )}
-          </div>
-
-          <div className="stats-card">
-            <h3>This month</h3>
-            <div className="stat-row"><span>Missions planned</span><strong>{missionsPlanned}</strong></div>
-            <div className="stat-row"><span>Total slots</span><strong>{totalSlots}</strong></div>
-            <div className="stat-row"><span>Slots open</span><strong>{slotsOpen}</strong></div>
           </div>
         </aside>
       </div>

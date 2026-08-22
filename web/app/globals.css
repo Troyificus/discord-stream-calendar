@@ -45,24 +45,11 @@ main {
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--muted);
-  padding-left: 14px;
-  position: relative;
 }
 
-.legend-item::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-.legend-open::before { background: var(--amber); }
-.legend-none::before { background: var(--muted); }
-.legend-full::before { background: var(--green); }
+.legend-open { color: var(--amber); }
+.legend-none { color: var(--muted); }
+.legend-full { color: var(--green); }
 
 @media (max-width: 1000px) {
   .layout { grid-template-columns: 1fr; }
@@ -149,13 +136,15 @@ main {
 .cell.blank { background-color: var(--panel); }
 
 .cell.cell-scheduled {
-  outline-color: rgba(255, 64, 96, 0.55);
-  box-shadow: inset 0 0 14px rgba(255, 64, 96, 0.12);
+  outline-width: 2px;
+  outline-color: rgba(255, 64, 96, 0.9);
+  box-shadow: inset 0 0 18px rgba(255, 64, 96, 0.25), 0 0 10px rgba(255, 64, 96, 0.35);
 }
 
 .cell.cell-full {
-  outline-color: rgba(76, 175, 109, 0.6);
-  box-shadow: inset 0 0 14px rgba(76, 175, 109, 0.15);
+  outline-width: 2px;
+  outline-color: rgba(76, 175, 109, 0.95);
+  box-shadow: inset 0 0 18px rgba(76, 175, 109, 0.3), 0 0 10px rgba(76, 175, 109, 0.4);
 }
 
 .cell.cell-next {
@@ -317,15 +306,14 @@ main {
   gap: 20px;
 }
 
-.next-card,
-.stats-card {
+.next-card {
   background: var(--panel);
   border-radius: 8px;
   padding: 18px;
+  border: 1px solid rgba(139, 128, 245, 0.35);
 }
 
-.next-card h3,
-.stats-card h3 {
+.next-card h3 {
   margin: 0 0 12px;
   font-size: 0.75rem;
   text-transform: uppercase;
@@ -340,10 +328,6 @@ main {
   letter-spacing: 0.02em;
   color: var(--highlight);
   margin-bottom: 12px;
-}
-
-.next-card {
-  border: 1px solid rgba(139, 128, 245, 0.35);
 }
 
 .next-thumb-title {
@@ -371,17 +355,6 @@ main {
   flex-direction: column;
   gap: 4px;
 }
-
-.stat-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 6px 0;
-  border-top: 1px solid var(--border);
-  font-size: 0.9rem;
-}
-
-.stat-row:first-of-type { border-top: none; }
-.stat-row strong { color: var(--accent-light); }
 
 .site-footer {
   max-width: 1600px;
