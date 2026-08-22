@@ -74,13 +74,11 @@ export default async function CalendarPage() {
       <div className="layout">
         <div className="primary">
           <header className="topbar">
-            <div>
-              <h1>{getMonthTitle()}</h1>
-              <div className="subtitle">Stream schedule</div>
-              <div className="legend">
-                <span className="legend-item legend-open">Open slots</span>
-                <span className="legend-item legend-none">No stream</span>
-                <span className="legend-item legend-full">Full</span>
+            <div className="brand">
+              <img src="/logo.png" alt="" className="brand-logo" />
+              <div>
+                <h1>{getMonthTitle()}</h1>
+                <div className="subtitle">Stream schedule</div>
               </div>
             </div>
             {session ? (
@@ -259,11 +257,16 @@ export default async function CalendarPage() {
       </div>
 
       <footer className="site-footer">
-        <span>Rated 16-bit</span>
         <div className="social-links">
-          <a href={SOCIAL_LINKS.discord} target="_blank" rel="noreferrer">Discord</a>
-          <a href={SOCIAL_LINKS.youtube} target="_blank" rel="noreferrer">YouTube</a>
-          <a href={SOCIAL_LINKS.twitch} target="_blank" rel="noreferrer">Twitch</a>
+          <a href={SOCIAL_LINKS.discord} target="_blank" rel="noreferrer" aria-label="Discord">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M20.3 4.9A19.8 19.8 0 0 0 15.6 3.4c-.2.4-.5.9-.6 1.3a18.3 18.3 0 0 0-5.9 0 8.9 8.9 0 0 0-.7-1.3 19.7 19.7 0 0 0-4.7 1.5C1.2 9 .4 13 .8 17a19.9 19.9 0 0 0 6 3c.5-.6.9-1.3 1.2-2a13 13 0 0 1-1.9-.9l.5-.4a14.2 14.2 0 0 0 12 0l.4.4c-.6.4-1.2.6-1.9.9.3.7.7 1.4 1.2 2a19.8 19.8 0 0 0 6-3c.5-4.6-.7-8.6-3-12.1ZM8.5 14.3c-1 0-1.8-.9-1.8-2s.8-2 1.8-2c1 0 1.9.9 1.8 2 0 1.1-.8 2-1.8 2Zm7 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2c1 0 1.9.9 1.8 2 0 1.1-.8 2-1.8 2Z"/></svg>
+          </a>
+          <a href={SOCIAL_LINKS.youtube} target="_blank" rel="noreferrer" aria-label="YouTube">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M23 12s0-3.4-.4-5a3 3 0 0 0-2.1-2.1C18.9 4.5 12 4.5 12 4.5s-6.9 0-8.5.4A3 3 0 0 0 1.4 7C1 8.6 1 12 1 12s0 3.4.4 5a3 3 0 0 0 2.1 2.1c1.6.4 8.5.4 8.5.4s6.9 0 8.5-.4A3 3 0 0 0 22.6 17c.4-1.6.4-5 .4-5ZM9.7 15.5V8.5l6 3.5-6 3.5Z"/></svg>
+          </a>
+          <a href={SOCIAL_LINKS.twitch} target="_blank" rel="noreferrer" aria-label="Twitch">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M4 2 2 6.5v14h5.5V23l3.5-2.5h4L21 15V2H4Zm15 12-3 3h-4l-3 2.5V17H6V4h13v10Z"/><path d="M15.5 7h2v5h-2V7Zm-5 0h2v5h-2V7Z"/></svg>
+          </a>
         </div>
       </footer>
     </main>

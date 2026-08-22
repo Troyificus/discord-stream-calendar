@@ -34,22 +34,36 @@ main {
   align-items: start;
 }
 
-.legend {
+.brand {
   display: flex;
-  gap: 14px;
-  margin-top: 6px;
+  align-items: center;
+  gap: 16px;
 }
 
-.legend-item {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--muted);
+.brand-logo {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
 }
 
-.legend-open { color: var(--amber); }
-.legend-none { color: var(--muted); }
-.legend-full { color: var(--green); }
+.topbar {
+  border-bottom: 1px solid rgba(217, 165, 72, 0.35);
+  padding-bottom: 20px;
+  position: relative;
+}
+
+.topbar::before,
+.topbar::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  width: 24px;
+  height: 8px;
+  border-bottom: 1px solid var(--accent);
+}
+
+.topbar::before { left: 0; border-left: 1px solid var(--accent); }
+.topbar::after { right: 0; border-right: 1px solid var(--accent); }
 
 @media (max-width: 1000px) {
   .layout { grid-template-columns: 1fr; }
@@ -318,7 +332,22 @@ main {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--muted);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.next-card h3::before,
+.next-card h3::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(217, 165, 72, 0.5));
+}
+
+.next-card h3::after {
+  background: linear-gradient(to left, transparent, rgba(217, 165, 72, 0.5));
 }
 
 .next-date {
@@ -362,12 +391,14 @@ main {
   padding: 20px 24px;
   border-top: 1px solid var(--border);
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: var(--muted);
-  font-size: 0.85rem;
+  justify-content: flex-end;
 }
 
-.social-links { display: flex; gap: 16px; }
-.social-links a { color: var(--muted); text-decoration: none; }
-.social-links a:hover { color: var(--accent-light); }
+.social-links { display: flex; gap: 18px; }
+.social-links a {
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  transition: color 0.15s ease;
+}
+.social-links a:hover { color: var(--accent); }
