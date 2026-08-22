@@ -7,5 +7,5 @@ create table if not exists game_thumbnails (
 );
 
 -- Also required (do this in the Dashboard, not SQL):
--- Storage -> New bucket -> name it exactly "game-thumbnails" -> toggle "Public bucket" ON -> Create.
+-- Storage -> New bucket -> name it exactly "game_thumbnails" -> toggle "Public bucket" ON -> Create.
 -- Public is needed so the calendar page can display the images without signed URLs.

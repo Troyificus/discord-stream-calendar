@@ -217,11 +217,11 @@ export async function uploadThumbnail(formData) {
   const path = `${tag.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.${ext}`;
 
   const { error: uploadError } = await supabaseAdmin.storage
-    .from('game-thumbnails')
+    .from('game_thumbnails')
     .upload(path, bytes, { contentType: file.type || 'image/png', upsert: true });
-  check(uploadError, 'Uploading the thumbnail failed - check the "game-thumbnails" storage bucket exists and is public');
+  check(uploadError, 'Uploading the thumbnail failed - check the "game_thumbnails" storage bucket exists and is public');
 
-  const { data: publicUrlData } = supabaseAdmin.storage.from('game-thumbnails').getPublicUrl(path);
+  const { data: publicUrlData } = supabaseAdmin.storage.from('game_thumbnails').getPublicUrl(path);
 
   const { error: dbError } = await supabaseAdmin
     .from('game_thumbnails')
