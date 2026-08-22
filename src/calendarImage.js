@@ -2,7 +2,7 @@ import { createCanvas, loadImage } from '@napi-rs/canvas';
 
 const WEEKDAY_HEADERS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const CELL_W = 160;
-const CELL_H = 130;
+const CELL_H = 190;
 const HEADER_H = 64;
 const DAYHEAD_H = 32;
 const PAD = 16;
@@ -189,11 +189,32 @@ export async function renderCalendarImage(title, monthDates, dayInfo, thumbnails
       const timeText = info.start_time_utc ? `${formatUKTime(info.start_time_utc)} UK` : 'time tbc';
       strokedText(ctx, timeText, x + 10, y + 60);
 
-      if (info.who) {
+      const names = [
+        ...(info.attendees ?? []),
+        ...(info.guestNames ?? []).map((n) => `${n} (guest)`)
+      ];
+
+      if (names.length) {
         ctx.font = '11px sans-serif';
-        ctx.fillStyle = '#d8d4c8';
-        const whoText = info.who.length > 21 ? `${info.who.slice(0, 20)}…` : info.who;
-        strokedText(ctx, whoText, x + 10, y + 76);
+        const lineHeight = 14;
+        const linesStart = y + 76;
+        const linesEnd = y + CELL_H - 22; // leave room for the status badge below
+        const maxLines = Math.max(1, Math.floor((linesEnd - linesStart) / lineHeight));
+
+        const overflow = names.length > maxLines;
+        const shown = overflow ? names.slice(0, maxLines - 1) : names;
+
+        shown.forEach((name, i) => {
+          const isGuest = name.endsWith('(guest)');
+          ctx.fillStyle = isGuest ? COLORS.gold : '#d8d4c8';
+          const text = name.length > 22 ? `${name.slice(0, 21)}…` : name;
+          strokedText(ctx, text, x + 10, linesStart + i * lineHeight);
+        });
+
+        if (overflow) {
+          ctx.fillStyle = COLORS.muted;
+          strokedText(ctx, `+${names.length - shown.length} more`, x + 10, linesStart + shown.length * lineHeight);
+        }
       }
 
       ctx.font = 'bold 10px sans-serif';

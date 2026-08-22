@@ -39,7 +39,7 @@ async function getDaysAndApprovedGuests(dates) {
 
   const { data: approvedGuests } = await supabase
     .from('guest_requests')
-    .select('stream_day_id')
+    .select('stream_day_id, display_name')
     .eq('status', 'approved');
 
   return { days: days ?? [], approvedGuests: approvedGuests ?? [] };
@@ -58,14 +58,13 @@ export async function buildMonthlyEmbed() {
   for (const date of dates) {
     const day = days.find((d) => d.date === date);
     const attendees = day?.attendance?.map((a) => a.display_name).filter(Boolean) ?? [];
-    if (!day || (!day.game && !attendees.length)) continue;
+    const guestNames = approvedGuests.filter((g) => g.stream_day_id === day?.id).map((g) => g.display_name);
+    if (!day || (!day.game && !attendees.length && !guestNames.length)) continue;
 
-    const guestCount = approvedGuests.filter((g) => g.stream_day_id === day.id).length;
-    const filled = attendees.length + guestCount;
+    const filled = attendees.length + guestNames.length;
     const open = Math.max(day.capacity - filled, 0);
-    const whoText = attendees.length ? attendees.join(', ') : undefined;
 
-    dayInfo.set(date, { game: day.game, start_time_utc: day.start_time_utc, who: whoText, open, full: open === 0 });
+    dayInfo.set(date, { game: day.game, start_time_utc: day.start_time_utc, attendees, guestNames, open, full: open === 0 });
 
     if (day.start_time_utc && new Date(day.start_time_utc).getTime() > Date.now()) {
       upcoming.push({ date, game: day.game, start_time_utc: day.start_time_utc });
