@@ -330,10 +330,17 @@ main {
 }
 
 .next-card {
-  background: var(--panel);
-  border-radius: 8px;
+  background-color: var(--panel);
+  background-image:
+    url('/corner-tl.png'),
+    url('/corner-tr.png'),
+    url('/corner-bl.png'),
+    url('/corner-br.png');
+  background-repeat: no-repeat;
+  background-position: top -1px left -1px, top -1px right -1px, bottom -1px left -1px, bottom -1px right -1px;
+  background-size: 32px auto, 32px auto, 32px auto, 32px auto;
+  border-radius: 2px;
   padding: 24px;
-  border: 1px solid rgba(139, 128, 245, 0.35);
 }
 
 .next-card h3 {
