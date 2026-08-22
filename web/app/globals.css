@@ -29,7 +29,7 @@ main {
 
 .layout {
   display: grid;
-  grid-template-columns: 1fr 320px;
+  grid-template-columns: 1fr 400px;
   gap: 24px;
   align-items: start;
 }
@@ -323,7 +323,7 @@ main {
 .next-card {
   background: var(--panel);
   border-radius: 8px;
-  padding: 18px;
+  padding: 24px;
   border: 1px solid rgba(139, 128, 245, 0.35);
 }
 
@@ -352,16 +352,16 @@ main {
 
 .next-date {
   font-weight: 700;
-  font-size: 1.5rem;
+  font-size: 1.7rem;
   text-transform: uppercase;
   letter-spacing: 0.02em;
   color: var(--highlight);
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .next-thumb-title {
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 1.4rem;
   text-transform: uppercase;
 }
 
@@ -370,7 +370,7 @@ main {
   background-size: cover;
   background-position: center;
   border-radius: 6px;
-  min-height: 140px;
+  min-height: 260px;
   display: flex;
   align-items: flex-end;
   padding: 12px;
@@ -384,6 +384,9 @@ main {
   flex-direction: column;
   gap: 4px;
 }
+
+.next-card .meta { font-size: 1rem; margin-bottom: 8px; }
+.next-card .badge-status { font-size: 0.85rem; padding: 4px 10px; }
 
 .site-footer {
   max-width: 1600px;

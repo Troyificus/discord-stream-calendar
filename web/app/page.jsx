@@ -71,26 +71,26 @@ export default async function CalendarPage() {
 
   return (
     <main>
+      <header className="topbar">
+        <div className="brand">
+          <img src="/logo.png" alt="" className="brand-logo" />
+          <div>
+            <h1>{getMonthTitle()}</h1>
+            <div className="subtitle">Stream schedule</div>
+          </div>
+        </div>
+        {session ? (
+          <div className="account">
+            <span>{session.username}</span>
+            <a href="/api/auth/logout">Sign out</a>
+          </div>
+        ) : (
+          <a className="signin" href="/api/auth/login">Sign in with Discord</a>
+        )}
+      </header>
+
       <div className="layout">
         <div className="primary">
-          <header className="topbar">
-            <div className="brand">
-              <img src="/logo.png" alt="" className="brand-logo" />
-              <div>
-                <h1>{getMonthTitle()}</h1>
-                <div className="subtitle">Stream schedule</div>
-              </div>
-            </div>
-            {session ? (
-              <div className="account">
-                <span>{session.username}</span>
-                <a href="/api/auth/logout">Sign out</a>
-              </div>
-            ) : (
-              <a className="signin" href="/api/auth/login">Sign in with Discord</a>
-            )}
-          </header>
-
           {admin && (
             <section className="admin-panel">
               <h2>Admin</h2>
