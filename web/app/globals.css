@@ -245,6 +245,7 @@ main {
   background: var(--panel);
   border-radius: 8px;
   padding: 20px;
+  margin-top: 24px;
   margin-bottom: 24px;
 }
 

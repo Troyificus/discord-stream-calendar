@@ -89,15 +89,13 @@ export default async function CalendarPage() {
         )}
       </header>
 
-      <div className="layout">
-        <div className="primary">
-          {admin && (
-            <section className="admin-panel">
-              <h2>Admin</h2>
+      {admin && (
+        <section className="admin-panel">
+          <h2>Admin</h2>
 
-              <div className="admin-forms">
-                <form action={setGame} className="admin-form">
-                  <h3>Set a day</h3>
+          <div className="admin-forms">
+            <form action={setGame} className="admin-form">
+              <h3>Set a day</h3>
                   <input type="date" name="date" min={dates[0]} max={dates[dates.length - 1]} required />
                   <input type="text" name="game" placeholder="Game" required />
                   <input type="time" name="time" required />
@@ -163,13 +161,15 @@ export default async function CalendarPage() {
             </section>
           )}
 
-          <div className="grid">
-            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
-              <div key={d} className="weekday">{d}</div>
-            ))}
+          <div className="layout">
+            <div className="primary">
+              <div className="grid">
+                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
+                  <div key={d} className="weekday">{d}</div>
+                ))}
 
-            {Array.from({ length: firstWeekday }).map((_, i) => (
-              <div key={`blank-${i}`} className="cell blank" />
+                {Array.from({ length: firstWeekday }).map((_, i) => (
+                  <div key={`blank-${i}`} className="cell blank" />
             ))}
 
             {dates.map((date) => {
