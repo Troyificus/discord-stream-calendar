@@ -202,3 +202,31 @@ export async function denyRequest(id) {
   check(error, 'Denying failed');
   revalidatePath('/');
 }
+
+export async function uploadThumbnail(formData) {
+  const user = await getSessionUser();
+  if (!user?.isAdmin) throw new Error('Admin only.');
+
+  const tag = (formData.get('tag') || '').trim();
+  const file = formData.get('file');
+  if (!tag) throw new Error('Enter a game tag - it must match the game name you type into "Set a day" exactly (not case-sensitive).');
+  if (!file || typeof file === 'string' || file.size === 0) throw new Error('Choose an image file.');
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const ext = (file.name?.split('.').pop() || 'png').toLowerCase();
+  const path = `${tag.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.${ext}`;
+
+  const { error: uploadError } = await supabaseAdmin.storage
+    .from('game-thumbnails')
+    .upload(path, bytes, { contentType: file.type || 'image/png', upsert: true });
+  check(uploadError, 'Uploading the thumbnail failed - check the "game-thumbnails" storage bucket exists and is public');
+
+  const { data: publicUrlData } = supabaseAdmin.storage.from('game-thumbnails').getPublicUrl(path);
+
+  const { error: dbError } = await supabaseAdmin
+    .from('game_thumbnails')
+    .upsert({ tag: tag.toLowerCase(), image_url: publicUrlData.publicUrl }, { onConflict: 'tag' });
+  check(dbError, 'Saving the thumbnail failed');
+
+  revalidatePath('/');
+}
