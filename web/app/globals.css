@@ -1,15 +1,16 @@
 :root {
-  --bg: #1e1f22;
-  --panel: #2b2d31;
-  --cell: #313338;
-  --border: #1e1f22;
-  --text: #f2f3f5;
-  --muted: #949ba4;
-  --accent: #5865f2;
-  --accent-light: #c9cdfb;
-  --green: #23a55a;
-  --red: #da373c;
-  --amber: #f0b232;
+  --bg: #0a0a0c;
+  --panel: #141417;
+  --cell: #1a1a1e;
+  --border: #2a2a2e;
+  --text: #f5f0e6;
+  --muted: #8a8a90;
+  --accent: #d9a548;
+  --accent-light: #f0d98c;
+  --highlight: #8b80f5;
+  --green: #4caf6d;
+  --red: #ff4d5e;
+  --amber: #d9a548;
 }
 
 * { box-sizing: border-box; }
@@ -18,7 +19,6 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: system-ui, sans-serif;
 }
 
 main {
@@ -76,10 +76,21 @@ main {
 }
 
 .topbar h1 {
-  font-weight: 800;
-  color: var(--accent);
-  font-size: 2.25rem;
+  font-weight: 700;
+  color: var(--accent-light);
+  font-size: 2.5rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
   margin: 0;
+}
+
+.subtitle {
+  color: var(--accent);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  font-weight: 500;
+  margin-top: 2px;
 }
 
 .signin {
@@ -143,16 +154,24 @@ main {
 }
 
 .cell.cell-full {
-  outline-color: rgba(35, 165, 90, 0.6);
-  box-shadow: inset 0 0 14px rgba(35, 165, 90, 0.15);
+  outline-color: rgba(76, 175, 109, 0.6);
+  box-shadow: inset 0 0 14px rgba(76, 175, 109, 0.15);
 }
 
-.daynum { font-weight: bold; font-size: 1.05rem; }
+.cell.cell-next {
+  outline-color: var(--highlight);
+  outline-width: 2px;
+  box-shadow: inset 0 0 16px rgba(139, 128, 245, 0.2);
+}
+
+.daynum { font-weight: 700; font-size: 1.1rem; color: var(--accent-light); }
 
 .game {
-  font-family: Georgia, serif;
-  font-style: italic;
+  font-weight: 700;
   font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  color: var(--text);
 }
 
 .game.tbc { color: var(--muted); }
@@ -196,8 +215,8 @@ main {
   text-transform: uppercase;
 }
 
-.badge-status.open { color: var(--amber); background: rgba(240, 178, 50, 0.12); border: 1px solid rgba(240, 178, 50, 0.4); }
-.badge-status.full { color: var(--green); background: rgba(35, 165, 90, 0.12); border: 1px solid rgba(35, 165, 90, 0.4); }
+.badge-status.open { color: var(--amber); background: rgba(217, 165, 72, 0.14); border: 1px solid rgba(217, 165, 72, 0.4); }
+.badge-status.full { color: var(--green); background: rgba(76, 175, 109, 0.14); border: 1px solid rgba(76, 175, 109, 0.4); }
 
 .btn {
   border: none;
@@ -315,10 +334,22 @@ main {
 }
 
 .next-date {
-  font-weight: 800;
-  font-size: 1.4rem;
-  color: var(--accent-light);
+  font-weight: 700;
+  font-size: 1.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--highlight);
   margin-bottom: 12px;
+}
+
+.next-card {
+  border: 1px solid rgba(139, 128, 245, 0.35);
+}
+
+.next-thumb-title {
+  font-weight: 700;
+  font-size: 1.1rem;
+  text-transform: uppercase;
 }
 
 .next-thumb {
@@ -331,13 +362,6 @@ main {
   align-items: flex-end;
   padding: 12px;
   margin-bottom: 8px;
-}
-
-.next-thumb-title {
-  font-family: Georgia, serif;
-  font-style: italic;
-  font-size: 1.1rem;
-  font-weight: bold;
 }
 
 .next-empty {

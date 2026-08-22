@@ -85,6 +85,7 @@ export default async function CalendarPage() {
           <header className="topbar">
             <div>
               <h1>{getMonthTitle()}</h1>
+              <div className="subtitle">Stream schedule</div>
               <div className="legend">
                 <span className="legend-item legend-open">Open slots</span>
                 <span className="legend-item legend-none">No stream</span>
@@ -186,13 +187,14 @@ export default async function CalendarPage() {
               const isIn = session ? attendees.some((a) => a.discord_user_id === session.id) : false;
               const showTbc = day?.game || attendees.length > 0;
               const statusClass = !day?.game ? '' : open === 0 ? 'cell-full' : 'cell-scheduled';
+              const nextClass = date === nextDate ? 'cell-next' : '';
 
               const cellStyle = thumbnail
                 ? { backgroundImage: `linear-gradient(to top, rgba(10,10,14,0.92) 0%, rgba(10,10,14,0.55) 55%, rgba(10,10,14,0.1) 100%), url(${thumbnail})` }
                 : undefined;
 
               return (
-                <div key={date} className={`cell ${statusClass}`} style={cellStyle}>
+                <div key={date} className={`cell ${statusClass} ${nextClass}`} style={cellStyle}>
                   <div className="daynum">{Number(date.slice(-2))}</div>
 
                   {day?.game && <div className="game">{day.game}</div>}
