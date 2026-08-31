@@ -3,9 +3,10 @@ import { createCanvas, loadImage } from '@napi-rs/canvas';
 const WEEKDAY_HEADERS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const CELL_W = 160;
 const CELL_H = 190;
-const HEADER_H = 64;
+const TITLE_H = 48;
 const DAYHEAD_H = 32;
 const PAD = 16;
+const MONTH_GAP = 24;
 
 const COLORS = {
   bg: '#0a0a0c',
@@ -57,9 +58,18 @@ function drawCover(ctx, img, x, y, w, h) {
   ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
 }
 
-async function loadThumbnailImages(monthDates, dayInfo, thumbnails) {
+function rowsForMonth(dates) {
+  const firstWeekday = (new Date(`${dates[0]}T00:00:00Z`).getUTCDay() + 6) % 7;
+  return Math.ceil((firstWeekday + dates.length) / 7);
+}
+
+function monthBlockHeight(dates) {
+  return TITLE_H + DAYHEAD_H + rowsForMonth(dates) * CELL_H;
+}
+
+async function loadThumbnailImages(allDates, dayInfo, thumbnails) {
   const cache = new Map();
-  for (const date of monthDates) {
+  for (const date of allDates) {
     const info = dayInfo.get(date);
     if (!info?.game) continue;
     const url = thumbnails[info.game.toLowerCase()];
@@ -75,51 +85,36 @@ async function loadThumbnailImages(monthDates, dayInfo, thumbnails) {
   return cache;
 }
 
-// monthDates: array of ISO date strings for the month, in order.
-// dayInfo: Map keyed by ISO date -> { game, start_time_utc, who: string, open: number, full: boolean }
-// thumbnails: { "game name lowercase": "https://..." }
-export async function renderCalendarImage(title, monthDates, dayInfo, thumbnails = {}) {
-  const daysInMonth = monthDates.length;
-  const firstWeekday = (new Date(`${monthDates[0]}T00:00:00Z`).getUTCDay() + 6) % 7; // Monday = 0
-  const rows = Math.ceil((firstWeekday + daysInMonth) / 7);
-  const width = CELL_W * 7 + PAD * 2;
-  const height = HEADER_H + DAYHEAD_H + rows * CELL_H + PAD * 2;
-
-  const images = await loadThumbnailImages(monthDates, dayInfo, thumbnails);
-
-  const canvas = createCanvas(width, height);
-  const ctx = canvas.getContext('2d');
-
-  ctx.fillStyle = COLORS.bg;
-  ctx.fillRect(0, 0, width, height);
+function drawMonthBlock(ctx, title, dates, dayInfo, thumbnails, images, top) {
+  const firstWeekday = (new Date(`${dates[0]}T00:00:00Z`).getUTCDay() + 6) % 7;
+  const rows = rowsForMonth(dates);
+  const today = todayISOInUK();
 
   ctx.fillStyle = COLORS.goldLight;
-  ctx.font = 'bold 30px sans-serif';
-  ctx.fillText(title.toUpperCase(), PAD, PAD + 32);
+  ctx.font = 'bold 26px sans-serif';
+  ctx.fillText(title.toUpperCase(), PAD, top + 30);
 
   ctx.font = 'bold 13px sans-serif';
   ctx.fillStyle = COLORS.gold;
   WEEKDAY_HEADERS.forEach((day, i) => {
-    ctx.fillText(day.toUpperCase(), PAD + i * CELL_W + 10, PAD + HEADER_H + 22);
+    ctx.fillText(day.toUpperCase(), PAD + i * CELL_W + 10, top + TITLE_H + 22);
   });
-
-  const today = todayISOInUK();
 
   for (let i = 0; i < rows * 7; i++) {
     const row = Math.floor(i / 7);
     const col = i % 7;
     const x = PAD + col * CELL_W;
-    const y = PAD + HEADER_H + DAYHEAD_H + row * CELL_H;
+    const y = top + TITLE_H + DAYHEAD_H + row * CELL_H;
 
     const dateIndex = i - firstWeekday;
-    if (dateIndex < 0 || dateIndex >= daysInMonth) {
+    if (dateIndex < 0 || dateIndex >= dates.length) {
       ctx.strokeStyle = COLORS.border;
       ctx.lineWidth = 1;
       ctx.strokeRect(x, y, CELL_W, CELL_H);
       continue;
     }
 
-    const date = monthDates[dateIndex];
+    const date = dates[dateIndex];
     const dayNum = Number(date.slice(-2));
     const info = dayInfo.get(date);
     const isToday = date === today;
@@ -204,11 +199,11 @@ export async function renderCalendarImage(title, monthDates, dayInfo, thumbnails
         const overflow = names.length > maxLines;
         const shown = overflow ? names.slice(0, maxLines - 1) : names;
 
-        shown.forEach((name, i) => {
+        shown.forEach((name, i2) => {
           const isGuest = name.endsWith('(guest)');
           ctx.fillStyle = isGuest ? COLORS.gold : '#d8d4c8';
           const text = name.length > 22 ? `${name.slice(0, 21)}…` : name;
-          strokedText(ctx, text, x + 10, linesStart + i * lineHeight);
+          strokedText(ctx, text, x + 10, linesStart + i2 * lineHeight);
         });
 
         if (overflow) {
@@ -222,6 +217,30 @@ export async function renderCalendarImage(title, monthDates, dayInfo, thumbnails
       strokedText(ctx, info.full ? 'FULL' : `${info.open} OPEN`, x + 10, y + CELL_H - 10);
     }
   }
+}
+
+// months: [{ title, dates }, ...] - one block per month, drawn stacked top to bottom.
+// dayInfo: Map keyed by ISO date -> { game, start_time_utc, attendees, guestNames, open, full }, covering all months.
+// thumbnails: { "game name lowercase": "https://..." }
+export async function renderCalendarImage(months, dayInfo, thumbnails = {}) {
+  const allDates = months.flatMap((m) => m.dates);
+  const width = CELL_W * 7 + PAD * 2;
+  const blockHeights = months.map((m) => monthBlockHeight(m.dates));
+  const height = PAD * 2 + blockHeights.reduce((a, b) => a + b, 0) + MONTH_GAP * (months.length - 1);
+
+  const images = await loadThumbnailImages(allDates, dayInfo, thumbnails);
+
+  const canvas = createCanvas(width, height);
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = COLORS.bg;
+  ctx.fillRect(0, 0, width, height);
+
+  let top = PAD;
+  months.forEach((month, i) => {
+    drawMonthBlock(ctx, month.title, month.dates, dayInfo, thumbnails, images, top);
+    top += blockHeights[i] + MONTH_GAP;
+  });
 
   return canvas.toBuffer('image/png');
 }

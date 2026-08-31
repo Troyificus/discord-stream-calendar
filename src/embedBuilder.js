@@ -19,16 +19,23 @@ export function dayLabel(isoDate) {
   return `${weekdayAbbr(isoDate)} ${formatDateUK(isoDate)}`;
 }
 
-// All ISO dates in the current calendar month.
-export function getMonthDates() {
+// ISO dates for a given month, offset from the current one (0 = this month, 1 = next month).
+// JS Date rolls December + 1 into January of the next year automatically.
+export function getMonthDates(monthOffset = 0) {
   const now = new Date();
   const year = now.getUTCFullYear();
-  const month = now.getUTCMonth();
+  const month = now.getUTCMonth() + monthOffset;
   const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
   return Array.from({ length: lastDay }, (_, i) => {
     const d = new Date(Date.UTC(year, month, i + 1));
     return d.toISOString().slice(0, 10);
   });
+}
+
+export function getMonthTitle(monthOffset = 0) {
+  const now = new Date();
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + monthOffset, 1));
+  return `${MONTH_NAMES[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
 async function getDaysAndApprovedGuests(dates) {
@@ -46,16 +53,19 @@ async function getDaysAndApprovedGuests(dates) {
 }
 
 export async function buildMonthlyEmbed() {
-  const dates = getMonthDates();
-  const { days, approvedGuests } = await getDaysAndApprovedGuests(dates);
+  const months = [0, 1].map((offset) => ({
+    offset,
+    title: getMonthTitle(offset),
+    dates: getMonthDates(offset)
+  }));
+  const allDates = months.flatMap((m) => m.dates);
 
-  const now = new Date();
-  const title = `${MONTH_NAMES[now.getUTCMonth()]} ${now.getUTCFullYear()}`;
+  const { days, approvedGuests } = await getDaysAndApprovedGuests(allDates);
 
   const dayInfo = new Map();
   const upcoming = [];
 
-  for (const date of dates) {
+  for (const date of allDates) {
     const day = days.find((d) => d.date === date);
     const attendees = day?.attendance?.map((a) => a.display_name).filter(Boolean) ?? [];
     const guestNames = approvedGuests.filter((g) => g.stream_day_id === day?.id).map((g) => g.display_name);
@@ -72,7 +82,11 @@ export async function buildMonthlyEmbed() {
   }
 
   const thumbnails = await getThumbnailMap();
-  const imageBuffer = await renderCalendarImage(title, dates, dayInfo, thumbnails);
+  const imageBuffer = await renderCalendarImage(
+    months.map(({ title, dates }) => ({ title, dates })),
+    dayInfo,
+    thumbnails
+  );
   const attachment = new AttachmentBuilder(imageBuffer, { name: 'calendar.png' });
 
   const upcomingText = upcoming
@@ -80,7 +94,7 @@ export async function buildMonthlyEmbed() {
     .map((u) => `${dayLabel(u.date)} — ${u.game} · <t:${Math.floor(new Date(u.start_time_utc).getTime() / 1000)}:t>`)
     .join('\n');
 
-  let content = `**${title}**`;
+  let content = `**${months[0].title} & ${months[1].title}**`;
   if (upcomingText) {
     content += `\n\n**Coming up (your local time):**\n${upcomingText}`;
   }

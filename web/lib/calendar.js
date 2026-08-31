@@ -13,10 +13,10 @@ export function dayLabel(isoDate) {
   return `${abbr} ${formatDateUK(isoDate)}`;
 }
 
-export function getMonthDates() {
+export function getMonthDates(monthOffset = 0) {
   const now = new Date();
   const year = now.getUTCFullYear();
-  const month = now.getUTCMonth();
+  const month = now.getUTCMonth() + monthOffset;
   const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
   return Array.from({ length: lastDay }, (_, i) => {
     const d = new Date(Date.UTC(year, month, i + 1));
@@ -24,9 +24,10 @@ export function getMonthDates() {
   });
 }
 
-export function getMonthTitle() {
+export function getMonthTitle(monthOffset = 0) {
   const now = new Date();
-  return `${MONTH_NAMES[now.getUTCMonth()]} ${now.getUTCFullYear()}`;
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + monthOffset, 1));
+  return `${MONTH_NAMES[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
 export function formatUKTime(isoUtc) {

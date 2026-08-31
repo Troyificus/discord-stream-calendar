@@ -205,12 +205,14 @@ export async function setRecurring(formData) {
   const weekday = formData.get('weekday');
   const game = formData.get('game');
   const time = formData.get('time');
+  const monthOffset = Number(formData.get('monthOffset') || 0);
   if (!game) throw new Error('Enter a game.');
   if (!(weekday in WEEKDAY_INDEX)) throw new Error(`"${weekday}" isn't a valid weekday.`);
+  if (monthOffset !== 0 && monthOffset !== 1) throw new Error('Pick a valid month.');
 
   const targetIndex = WEEKDAY_INDEX[weekday];
-  const matches = getMonthDates().filter((d) => new Date(`${d}T00:00:00Z`).getUTCDay() === targetIndex);
-  if (!matches.length) throw new Error(`No ${weekday}s left this month.`);
+  const matches = getMonthDates(monthOffset).filter((d) => new Date(`${d}T00:00:00Z`).getUTCDay() === targetIndex);
+  if (!matches.length) throw new Error(`No ${weekday}s left in that month.`);
 
   for (const date of matches) {
     const startTimeUtc = parseTimeToUtc(date, time);

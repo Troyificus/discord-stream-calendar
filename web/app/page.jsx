@@ -22,11 +22,17 @@ export default async function CalendarPage() {
   const cookieStore = await cookies();
   const session = verifySessionToken(cookieStore.get('session')?.value);
 
-  const dates = getMonthDates();
+  const months = [0, 1].map((offset) => ({
+    offset,
+    title: getMonthTitle(offset),
+    dates: getMonthDates(offset)
+  }));
+  const allDates = months.flatMap((m) => m.dates);
+
   const { data: days, error: daysError } = await supabaseAdmin
     .from('stream_days')
     .select('*, attendance(discord_user_id, display_name, created_at)')
-    .in('date', dates);
+    .in('date', allDates);
   if (daysError) throw new Error(`Loading the calendar failed: ${daysError.message}`);
 
   const { data: approvedGuests, error: guestsError } = await supabaseAdmin
@@ -56,12 +62,10 @@ export default async function CalendarPage() {
     approvedGuestsAdminList = approved ?? [];
   }
 
-  const firstWeekday = (new Date(`${dates[0]}T00:00:00Z`).getUTCDay() + 6) % 7;
-
-  // Pre-compute per-day stats once, reused by the grid and the next-scheduled-stream panel.
+  // Pre-compute per-day stats once, reused by both grids and the next-scheduled-stream panel.
   const dayStats = new Map();
 
-  for (const date of dates) {
+  for (const date of allDates) {
     const day = days?.find((d) => d.date === date);
     const attendees = (day?.attendance ?? []).slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
     const guestNames = approvedGuests?.filter((g) => g.stream_day_id === day?.id).map((g) => g.display_name) ?? [];
@@ -74,8 +78,11 @@ export default async function CalendarPage() {
   }
 
   const today = todayISOInUK();
-  const nextDate = dates.find((d) => d >= today && dayStats.get(d).day?.game);
+  const nextDate = allDates.find((d) => d >= today && dayStats.get(d).day?.game);
   const nextStats = nextDate ? dayStats.get(nextDate) : null;
+
+  const pickerMin = allDates[0];
+  const pickerMax = allDates[allDates.length - 1];
 
   return (
     <main>
@@ -83,7 +90,7 @@ export default async function CalendarPage() {
         <div className="brand">
           <img src="/logo.png" alt="" className="brand-logo" />
           <div>
-            <h1>{getMonthTitle()}</h1>
+            <h1>{months[0].title}</h1>
             <div className="subtitle">Stream schedule</div>
           </div>
         </div>
@@ -104,161 +111,174 @@ export default async function CalendarPage() {
           <div className="admin-forms">
             <form action={setGame} className="admin-form">
               <h3>Set a day</h3>
-                  <input type="date" name="date" min={dates[0]} max={dates[dates.length - 1]} required />
-                  <input type="text" name="game" placeholder="Game" required />
-                  <input type="time" name="time" required />
-                  <span className="hint">Time is UK time</span>
-                  <button type="submit">Save</button>
-                </form>
+              <input type="date" name="date" min={pickerMin} max={pickerMax} required />
+              <input type="text" name="game" placeholder="Game" required />
+              <input type="time" name="time" required />
+              <span className="hint">Time is UK time</span>
+              <button type="submit">Save</button>
+            </form>
 
-                <form action={clearGame} className="admin-form">
-                  <h3>Clear a day</h3>
-                  <input type="date" name="date" min={dates[0]} max={dates[dates.length - 1]} required />
-                  <button type="submit">Clear</button>
-                </form>
+            <form action={clearGame} className="admin-form">
+              <h3>Clear a day</h3>
+              <input type="date" name="date" min={pickerMin} max={pickerMax} required />
+              <button type="submit">Clear</button>
+            </form>
 
-                <form action={setCapacity} className="admin-form">
-                  <h3>Set capacity</h3>
-                  <input type="date" name="date" min={dates[0]} max={dates[dates.length - 1]} required />
-                  <input type="number" name="capacity" min="1" max="20" defaultValue="4" required />
-                  <button type="submit">Save</button>
-                </form>
+            <form action={setCapacity} className="admin-form">
+              <h3>Set capacity</h3>
+              <input type="date" name="date" min={pickerMin} max={pickerMax} required />
+              <input type="number" name="capacity" min="1" max="20" defaultValue="4" required />
+              <button type="submit">Save</button>
+            </form>
 
-                <form action={setRecurring} className="admin-form">
-                  <h3>Set every weekday this month</h3>
-                  <select name="weekday" required defaultValue="monday">
-                    <option value="monday">Monday</option>
-                    <option value="tuesday">Tuesday</option>
-                    <option value="wednesday">Wednesday</option>
-                    <option value="thursday">Thursday</option>
-                    <option value="friday">Friday</option>
-                    <option value="saturday">Saturday</option>
-                    <option value="sunday">Sunday</option>
-                  </select>
-                  <input type="text" name="game" placeholder="Game" required />
-                  <input type="time" name="time" required />
-                  <span className="hint">Time is UK time</span>
-                  <button type="submit">Save</button>
-                </form>
+            <form action={setRecurring} className="admin-form">
+              <h3>Set every weekday</h3>
+              <select name="monthOffset" required defaultValue="0">
+                <option value="0">{months[0].title}</option>
+                <option value="1">{months[1].title}</option>
+              </select>
+              <select name="weekday" required defaultValue="monday">
+                <option value="monday">Monday</option>
+                <option value="tuesday">Tuesday</option>
+                <option value="wednesday">Wednesday</option>
+                <option value="thursday">Thursday</option>
+                <option value="friday">Friday</option>
+                <option value="saturday">Saturday</option>
+                <option value="sunday">Sunday</option>
+              </select>
+              <input type="text" name="game" placeholder="Game" required />
+              <input type="time" name="time" required />
+              <span className="hint">Time is UK time</span>
+              <button type="submit">Save</button>
+            </form>
 
-                <form action={uploadThumbnail} className="admin-form" encType="multipart/form-data">
-                  <h3>Add game thumbnail</h3>
-                  <input type="text" name="tag" placeholder="Game name (must match exactly)" required />
-                  <input type="file" name="file" accept="image/*" required />
-                  <span className="hint">Square works best (500×500px+) - it's cropped to fit, so keep the subject centered</span>
-                  <button type="submit">Upload</button>
-                </form>
-              </div>
+            <form action={uploadThumbnail} className="admin-form" encType="multipart/form-data">
+              <h3>Add game thumbnail</h3>
+              <input type="text" name="tag" placeholder="Game name (must match exactly)" required />
+              <input type="file" name="file" accept="image/*" required />
+              <span className="hint">Square works best (500×500px+) - it's cropped to fit, so keep the subject centered</span>
+              <button type="submit">Upload</button>
+            </form>
+          </div>
 
-              {pendingRequests.length > 0 && (
-                <div className="requests">
-                  <h3>Pending guest requests</h3>
-                  {pendingRequests.map((r) => (
-                    <div key={r.id} className="request-row">
-                      <span>{r.display_name} — {formatDateUK(r.stream_days.date)}</span>
-                      <form action={approveRequest.bind(null, r.id)}>
-                        <button type="submit" className="btn join">Approve</button>
-                      </form>
-                      <form action={denyRequest.bind(null, r.id)}>
-                        <button type="submit" className="btn leave">Deny</button>
-                      </form>
-                    </div>
-                  ))}
+          {pendingRequests.length > 0 && (
+            <div className="requests">
+              <h3>Pending guest requests</h3>
+              {pendingRequests.map((r) => (
+                <div key={r.id} className="request-row">
+                  <span>{r.display_name} — {formatDateUK(r.stream_days.date)}</span>
+                  <form action={approveRequest.bind(null, r.id)}>
+                    <button type="submit" className="btn join">Approve</button>
+                  </form>
+                  <form action={denyRequest.bind(null, r.id)}>
+                    <button type="submit" className="btn leave">Deny</button>
+                  </form>
                 </div>
-              )}
-
-              {approvedGuestsAdminList.length > 0 && (
-                <div className="requests">
-                  <h3>Approved guests</h3>
-                  {approvedGuestsAdminList.map((r) => (
-                    <div key={r.id} className="request-row">
-                      <span>{r.display_name} — {formatDateUK(r.stream_days.date)}</span>
-                      <form action={denyRequest.bind(null, r.id)}>
-                        <button type="submit" className="btn leave">Remove</button>
-                      </form>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
+              ))}
+            </div>
           )}
 
-          <div className="layout">
-            <div className="primary">
-              <div className="grid">
-                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
-                  <div key={d} className="weekday">{d}</div>
-                ))}
-
-                {Array.from({ length: firstWeekday }).map((_, i) => (
-                  <div key={`blank-${i}`} className="cell blank" />
-            ))}
-
-            {dates.map((date) => {
-              const { day, attendees, guestNames, open, thumbnail } = dayStats.get(date);
-              const isIn = session ? attendees.some((a) => a.discord_user_id === session.id) : false;
-              const myGuestSlot = session ? approvedGuests?.find((g) => g.stream_day_id === day?.id && g.discord_user_id === session.id) : null;
-              const showTbc = day?.game || attendees.length > 0;
-              const statusClass = !day?.game ? '' : open === 0 ? 'cell-full' : 'cell-scheduled';
-              const nextClass = date === nextDate ? 'cell-next' : '';
-
-              const cellStyle = thumbnail
-                ? { backgroundImage: `linear-gradient(to top, rgba(10,10,14,0.92) 0%, rgba(10,10,14,0.55) 55%, rgba(10,10,14,0.1) 100%), url(${thumbnail})` }
-                : undefined;
-
-              return (
-                <div key={date} className={`cell ${statusClass} ${nextClass}`} style={cellStyle}>
-                  <div className="daynum">{Number(date.slice(-2))}</div>
-
-                  {day?.game && <div className="game">{day.game}</div>}
-                  {!day?.game && showTbc && <div className="game tbc">game tbc</div>}
-
-                  {day?.start_time_utc && <div className="meta">{formatUKTime(day.start_time_utc)} UK</div>}
-                  {!day?.start_time_utc && showTbc && <div className="meta">time tbc</div>}
-
-                  {(attendees.length > 0 || guestNames.length > 0) && (
-                    <div className="who">
-                      {attendees.map((a) => (
-                        <div key={a.discord_user_id} className="who-row">{a.display_name}</div>
-                      ))}
-                      {guestNames.map((g, i) => (
-                        <div key={`guest-${i}`} className="who-row who-guest">{g} (guest)</div>
-                      ))}
-                    </div>
-                  )}
-
-                  {showTbc && (
-                    <div className="badges">
-                      <span className="badge-count">{attendees.length + guestNames.length}/{dayStats.get(date).capacity}</span>
-                      <span className={`badge-status ${open === 0 ? 'full' : 'open'}`}>
-                        {open === 0 ? 'FULL' : `${open} OPEN`}
-                      </span>
-                    </div>
-                  )}
-
-                  {session?.isCore && day?.game && (
-                    <form action={isIn ? leaveDay.bind(null, date) : joinDay.bind(null, date)}>
-                      <button type="submit" className={isIn ? 'btn leave' : 'btn join'}>
-                        {isIn ? 'Leave' : 'Join'}
-                      </button>
-                    </form>
-                  )}
-
-                  {session && !session.isCore && myGuestSlot && (
-                    <form action={leaveGuestSlot.bind(null, date)}>
-                      <button type="submit" className="btn leave">Leave</button>
-                    </form>
-                  )}
-
-                  {session && !session.isCore && !myGuestSlot && day?.game && open > 0 && (
-                    <form action={requestGuest.bind(null, date)}>
-                      <button type="submit" className="btn guest">Request to guest</button>
-                    </form>
-                  )}
+          {approvedGuestsAdminList.length > 0 && (
+            <div className="requests">
+              <h3>Approved guests</h3>
+              {approvedGuestsAdminList.map((r) => (
+                <div key={r.id} className="request-row">
+                  <span>{r.display_name} — {formatDateUK(r.stream_days.date)}</span>
+                  <form action={denyRequest.bind(null, r.id)}>
+                    <button type="submit" className="btn leave">Remove</button>
+                  </form>
                 </div>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      <div className="layout">
+        <div className="primary">
+          {months.map((month) => {
+            const firstWeekday = (new Date(`${month.dates[0]}T00:00:00Z`).getUTCDay() + 6) % 7;
+
+            return (
+              <section key={month.offset} className="month-section">
+                <h2 className="month-heading">{month.title}</h2>
+                <div className="grid">
+                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
+                    <div key={d} className="weekday">{d}</div>
+                  ))}
+
+                  {Array.from({ length: firstWeekday }).map((_, i) => (
+                    <div key={`blank-${i}`} className="cell blank" />
+                  ))}
+
+                  {month.dates.map((date) => {
+                    const { day, attendees, guestNames, open, thumbnail } = dayStats.get(date);
+                    const isIn = session ? attendees.some((a) => a.discord_user_id === session.id) : false;
+                    const myGuestSlot = session ? approvedGuests?.find((g) => g.stream_day_id === day?.id && g.discord_user_id === session.id) : null;
+                    const showTbc = day?.game || attendees.length > 0;
+                    const statusClass = !day?.game ? '' : open === 0 ? 'cell-full' : 'cell-scheduled';
+                    const nextClass = date === nextDate ? 'cell-next' : '';
+
+                    const cellStyle = thumbnail
+                      ? { backgroundImage: `linear-gradient(to top, rgba(10,10,14,0.92) 0%, rgba(10,10,14,0.55) 55%, rgba(10,10,14,0.1) 100%), url(${thumbnail})` }
+                      : undefined;
+
+                    return (
+                      <div key={date} className={`cell ${statusClass} ${nextClass}`} style={cellStyle}>
+                        <div className="daynum">{Number(date.slice(-2))}</div>
+
+                        {day?.game && <div className="game">{day.game}</div>}
+                        {!day?.game && showTbc && <div className="game tbc">game tbc</div>}
+
+                        {day?.start_time_utc && <div className="meta">{formatUKTime(day.start_time_utc)} UK</div>}
+                        {!day?.start_time_utc && showTbc && <div className="meta">time tbc</div>}
+
+                        {(attendees.length > 0 || guestNames.length > 0) && (
+                          <div className="who">
+                            {attendees.map((a) => (
+                              <div key={a.discord_user_id} className="who-row">{a.display_name}</div>
+                            ))}
+                            {guestNames.map((g, i) => (
+                              <div key={`guest-${i}`} className="who-row who-guest">{g} (guest)</div>
+                            ))}
+                          </div>
+                        )}
+
+                        {showTbc && (
+                          <div className="badges">
+                            <span className="badge-count">{attendees.length + guestNames.length}/{dayStats.get(date).capacity}</span>
+                            <span className={`badge-status ${open === 0 ? 'full' : 'open'}`}>
+                              {open === 0 ? 'FULL' : `${open} OPEN`}
+                            </span>
+                          </div>
+                        )}
+
+                        {session?.isCore && day?.game && (
+                          <form action={isIn ? leaveDay.bind(null, date) : joinDay.bind(null, date)}>
+                            <button type="submit" className={isIn ? 'btn leave' : 'btn join'}>
+                              {isIn ? 'Leave' : 'Join'}
+                            </button>
+                          </form>
+                        )}
+
+                        {session && !session.isCore && myGuestSlot && (
+                          <form action={leaveGuestSlot.bind(null, date)}>
+                            <button type="submit" className="btn leave">Leave</button>
+                          </form>
+                        )}
+
+                        {session && !session.isCore && !myGuestSlot && day?.game && open > 0 && (
+                          <form action={requestGuest.bind(null, date)}>
+                            <button type="submit" className="btn guest">Request to guest</button>
+                          </form>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
         </div>
 
         <aside className="sidebar">
@@ -279,7 +299,7 @@ export default async function CalendarPage() {
                 </div>
               </>
             ) : (
-              <div className="next-empty">Nothing left scheduled this month</div>
+              <div className="next-empty">Nothing scheduled in the next two months</div>
             )}
           </div>
         </aside>
