@@ -53,7 +53,7 @@ async function getDaysAndApprovedGuests(dates) {
 }
 
 export async function buildMonthlyEmbed() {
-  const months = [0, 1].map((offset) => ({
+  const months = [0].map((offset) => ({
     offset,
     title: getMonthTitle(offset),
     dates: getMonthDates(offset)
@@ -94,7 +94,7 @@ export async function buildMonthlyEmbed() {
     .map((u) => `${dayLabel(u.date)} — ${u.game} · <t:${Math.floor(new Date(u.start_time_utc).getTime() / 1000)}:t>`)
     .join('\n');
 
-  let content = `**${months[0].title} & ${months[1].title}**`;
+  let content = `**${months[0].title}**`;
   if (upcomingText) {
     content += `\n\n**Coming up (your local time):**\n${upcomingText}`;
   }
