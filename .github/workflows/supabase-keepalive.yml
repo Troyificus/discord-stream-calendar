@@ -1,0 +1,33 @@
+name: Supabase Keepalive
+
+# Supabase pauses free-tier projects after 7 days without "sufficient
+# activity" — and read-only queries don't count (the bot's 5-minute polling
+# is all reads). This does a real WRITE to keepalive_pings every day.
+
+on:
+  schedule:
+    - cron: '0 12 * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write keepalive timestamp to Supabase
+        env:
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          CLEAN_KEY=$(echo -n "$SUPABASE_ANON_KEY" | tr -d '[:space:]')
+          NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          RESPONSE=$(curl --fail --silent --show-error -X PATCH \
+            "https://xbtiwitnditmrzfjfumq.supabase.co/rest/v1/keepalive_pings?id=eq.1" \
+            -H "apikey: ${CLEAN_KEY}" \
+            -H "Authorization: Bearer ${CLEAN_KEY}" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=representation" \
+            -d "{\"pinged_at\":\"${NOW}\"}")
+          echo "Supabase response: ${RESPONSE}"
+          if [ "${RESPONSE}" = "[]" ] || [ -z "${RESPONSE}" ]; then
+            echo "::error::Write did not update any rows — check keepalive_pings RLS policies and grants."
+            exit 1
+          fi
