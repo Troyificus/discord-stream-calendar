@@ -1,33 +1,47 @@
 name: Supabase Keepalive
 
-# Supabase pauses free-tier projects after 7 days without "sufficient
-# activity" — and read-only queries don't count (the bot's 5-minute polling
-# is all reads). This does a real WRITE to keepalive_pings every day.
+# Supabase pauses free-tier projects after a week without "sufficient user
+# database activity" (their docs: "a few user requests to the database each
+# day"). One write a day proved not to be enough, so this runs every 6 hours
+# (4x/day) and makes several requests each time: a write plus reads.
+# GitHub sometimes delays or skips scheduled runs, so the extra runs also
+# give slack for that.
 
 on:
   schedule:
-    - cron: '0 12 * * *'
+    - cron: '17 */6 * * *'
   workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Write keepalive timestamp to Supabase
+      - name: Keep Supabase active (write + reads)
         env:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           CLEAN_KEY=$(echo -n "$SUPABASE_ANON_KEY" | tr -d '[:space:]')
+          URL="https://xbtiwitnditmrzfjfumq.supabase.co/rest/v1/keepalive_pings"
           NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          RESPONSE=$(curl --fail --silent --show-error -X PATCH \
-            "https://xbtiwitnditmrzfjfumq.supabase.co/rest/v1/keepalive_pings?id=eq.1" \
-            -H "apikey: ${CLEAN_KEY}" \
-            -H "Authorization: Bearer ${CLEAN_KEY}" \
-            -H "Content-Type: application/json" \
-            -H "Prefer: return=representation" \
-            -d "{\"pinged_at\":\"${NOW}\"}")
-          echo "Supabase response: ${RESPONSE}"
+
+          # 1) Write (retry up to 3 times in case of a transient error)
+          for i in 1 2 3; do
+            RESPONSE=$(curl --fail --silent --show-error -X PATCH "${URL}?id=eq.1" \
+              -H "apikey: ${CLEAN_KEY}" -H "Authorization: Bearer ${CLEAN_KEY}" \
+              -H "Content-Type: application/json" -H "Prefer: return=representation" \
+              -d "{\"pinged_at\":\"${NOW}\"}") && break
+            echo "Write attempt $i failed, retrying in 30s..."; sleep 30
+          done
+          echo "Write response: ${RESPONSE}"
           if [ "${RESPONSE}" = "[]" ] || [ -z "${RESPONSE}" ]; then
-            echo "::error::Write did not update any rows — check keepalive_pings RLS policies and grants."
+            echo "::error::Write did not update any rows. The project may be PAUSED (restore it in the Supabase dashboard), or keepalive_pings policies/grants are broken."
             exit 1
           fi
+
+          # 2) A few reads, spaced out, so each run counts as several requests
+          for i in 1 2 3; do
+            sleep 10
+            curl --fail --silent --show-error "${URL}?select=pinged_at&id=eq.1" \
+              -H "apikey: ${CLEAN_KEY}" -H "Authorization: Bearer ${CLEAN_KEY}"
+            echo
+          done
