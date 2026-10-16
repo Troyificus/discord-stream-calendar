@@ -258,14 +258,16 @@ export async function uploadThumbnail(formData) {
 
   const { error: uploadError } = await supabaseAdmin.storage
     .from('game_thumbnails')
-    .upload(path, bytes, { contentType: file.type || 'image/png', upsert: true });
+    .upload(path, bytes, { contentType: file.type || 'image/png', upsert: true, cacheControl: '31536000' });
   check(uploadError, 'Uploading the thumbnail failed - check the "game_thumbnails" storage bucket exists and is public');
 
   const { data: publicUrlData } = supabaseAdmin.storage.from('game_thumbnails').getPublicUrl(path);
 
   const { error: dbError } = await supabaseAdmin
     .from('game_thumbnails')
-    .upsert({ tag: tag.toLowerCase(), image_url: publicUrlData.publicUrl }, { onConflict: 'tag' });
+    // ?v= makes each upload a new URL, so the bot's in-memory cache and browsers
+    // pick up a replaced image straight away despite the long cache lifetime.
+    .upsert({ tag: tag.toLowerCase(), image_url: `${publicUrlData.publicUrl}?v=${Date.now()}` }, { onConflict: 'tag' });
   check(dbError, 'Saving the thumbnail failed');
 
   revalidatePath('/');

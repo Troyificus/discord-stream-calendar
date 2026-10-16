@@ -67,22 +67,35 @@ function monthBlockHeight(dates) {
   return TITLE_H + DAYHEAD_H + rowsForMonth(dates) * CELL_H;
 }
 
+// Thumbnails are kept in memory for as long as the bot runs. Without this, every
+// 5-minute refresh re-downloaded every image from Supabase Storage (~300 MB/day),
+// which blew through the free plan's 5 GB cached-egress quota. Re-uploading a
+// thumbnail gives it a new ?v= URL (see uploadThumbnail), so changes still show up.
+const imageCache = new Map();
+
 async function loadThumbnailImages(allDates, dayInfo, thumbnails) {
-  const cache = new Map();
+  const images = new Map();
   for (const date of allDates) {
     const info = dayInfo.get(date);
     if (!info?.game) continue;
     const url = thumbnails[info.game.toLowerCase()];
-    if (!url || cache.has(url)) continue;
+    if (!url || images.has(url)) continue;
+    if (imageCache.has(url)) {
+      images.set(url, imageCache.get(url));
+      continue;
+    }
     try {
       const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const buffer = Buffer.from(await res.arrayBuffer());
-      cache.set(url, await loadImage(buffer));
+      const img = await loadImage(buffer);
+      imageCache.set(url, img);
+      images.set(url, img);
     } catch (err) {
       console.error(`Failed to load thumbnail for "${info.game}":`, err);
     }
   }
-  return cache;
+  return images;
 }
 
 function drawMonthBlock(ctx, title, dates, dayInfo, thumbnails, images, top) {
