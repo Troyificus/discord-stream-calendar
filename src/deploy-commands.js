@@ -4,7 +4,10 @@ import { REST, Routes, SlashCommandBuilder } from 'discord.js';
 const commands = [
   new SlashCommandBuilder()
     .setName('calendar-post')
-    .setDescription('Post or refresh this month\'s calendar (admin)')
+    .setDescription('Post or refresh this month\'s calendar (admin)'),
+  new SlashCommandBuilder()
+    .setName('schedule-post')
+    .setDescription('Post the stream schedule to Discord and socials now, replacing any not yet published (admin)')
 ].map((c) => c.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);

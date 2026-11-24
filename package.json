@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
-    "deploy-commands": "node src/deploy-commands.js"
+    "deploy-commands": "node src/deploy-commands.js",
+    "postiz-channels": "node src/postiz-channels.js"
   },
   "dependencies": {
     "@napi-rs/canvas": "^1.0.7",

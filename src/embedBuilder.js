@@ -2,6 +2,7 @@ import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentB
 import { supabase } from './supabaseClient.js';
 import { renderCalendarImage } from './calendarImage.js';
 import { getThumbnailMap } from './gameThumbnails.js';
+import { getDayInfo } from './roster.js';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const WEEKDAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -38,20 +39,6 @@ export function getMonthTitle(monthOffset = 0) {
   return `${MONTH_NAMES[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
-async function getDaysAndApprovedGuests(dates) {
-  const { data: days } = await supabase
-    .from('stream_days')
-    .select('*, attendance(discord_user_id, display_name)')
-    .in('date', dates);
-
-  const { data: approvedGuests } = await supabase
-    .from('guest_requests')
-    .select('stream_day_id, display_name')
-    .eq('status', 'approved');
-
-  return { days: days ?? [], approvedGuests: approvedGuests ?? [] };
-}
-
 export async function buildMonthlyEmbed() {
   const months = [0].map((offset) => ({
     offset,
@@ -60,24 +47,12 @@ export async function buildMonthlyEmbed() {
   }));
   const allDates = months.flatMap((m) => m.dates);
 
-  const { days, approvedGuests } = await getDaysAndApprovedGuests(allDates);
+  const dayInfo = await getDayInfo(allDates);
 
-  const dayInfo = new Map();
   const upcoming = [];
-
-  for (const date of allDates) {
-    const day = days.find((d) => d.date === date);
-    const attendees = day?.attendance?.map((a) => a.display_name).filter(Boolean) ?? [];
-    const guestNames = approvedGuests.filter((g) => g.stream_day_id === day?.id).map((g) => g.display_name);
-    if (!day || (!day.game && !attendees.length && !guestNames.length)) continue;
-
-    const filled = attendees.length + guestNames.length;
-    const open = Math.max(day.capacity - filled, 0);
-
-    dayInfo.set(date, { game: day.game, start_time_utc: day.start_time_utc, attendees, guestNames, open, full: open === 0 });
-
-    if (day.start_time_utc && new Date(day.start_time_utc).getTime() > Date.now()) {
-      upcoming.push({ date, game: day.game, start_time_utc: day.start_time_utc });
+  for (const info of dayInfo.values()) {
+    if (info.start_time_utc && new Date(info.start_time_utc).getTime() > Date.now()) {
+      upcoming.push({ date: info.date, game: info.game, start_time_utc: info.start_time_utc });
     }
   }
 
