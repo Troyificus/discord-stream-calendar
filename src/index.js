@@ -14,7 +14,7 @@ function isAdmin(interaction) {
 
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
-client.once('ready', () => {
+client.once('clientReady', () => {
   console.log(`Logged in as ${client.user.tag}`);
 
   // The website writes straight to Supabase and has no way to notify the bot,
