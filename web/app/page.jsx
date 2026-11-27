@@ -3,9 +3,10 @@ import { verifySessionToken } from '../lib/session.js';
 import { supabaseAdmin } from '../lib/supabaseAdmin.js';
 import { getMonthDates, getMonthTitle, formatUKTime, formatDateUK, dayLabel, todayISOInUK } from '../lib/calendar.js';
 import { getThumbnailMap } from '../lib/gameThumbnails.js';
+import { latestHashtagsByGame } from '../lib/hashtags.js';
 import {
   joinDay, leaveDay, requestGuest, leaveGuestSlot,
-  setGame, clearGame, setCapacity, setRecurring,
+  setGame, clearGame, setCapacity, setRecurring, setHashtags,
   approveRequest, denyRequest, uploadThumbnail
 } from './actions.js';
 
@@ -45,8 +46,16 @@ export default async function CalendarPage() {
 
   const admin = session?.isAdmin ?? false;
   let pendingRequests = [];
+  let hashtagsByGame = {};
   let approvedGuestsAdminList = [];
   if (admin) {
+    // Admin only: a day with no hashtags of its own uses the last ones set for the same game.
+    const { data: tagRows } = await supabaseAdmin
+      .from('stream_days')
+      .select('game, hashtags, date')
+      .not('hashtags', 'is', null);
+    hashtagsByGame = latestHashtagsByGame(tagRows);
+
     const { data: pending } = await supabaseAdmin
       .from('guest_requests')
       .select('*, stream_days(date)')
@@ -114,7 +123,16 @@ export default async function CalendarPage() {
               <input type="date" name="date" min={pickerMin} max={pickerMax} required />
               <input type="text" name="game" placeholder="Game" required />
               <input type="time" name="time" required />
-              <span className="hint">Time is UK time</span>
+              <input type="text" name="hashtags" placeholder="Hashtags (optional)" />
+              <span className="hint">Time is UK time. Hashtags left blank are kept as they were.</span>
+              <button type="submit">Save</button>
+            </form>
+
+            <form action={setHashtags} className="admin-form">
+              <h3>Set hashtags</h3>
+              <input type="date" name="date" min={pickerMin} max={pickerMax} required />
+              <input type="text" name="hashtags" placeholder="#warhammer #minipainting" />
+              <span className="hint">Used in social posts only. Spaces or commas between tags, # optional. Save it blank to clear. A day with none uses the last ones set for the same game.</span>
               <button type="submit">Save</button>
             </form>
 
@@ -148,7 +166,8 @@ export default async function CalendarPage() {
               </select>
               <input type="text" name="game" placeholder="Game" required />
               <input type="time" name="time" required />
-              <span className="hint">Time is UK time</span>
+              <input type="text" name="hashtags" placeholder="Hashtags (optional)" />
+              <span className="hint">Time is UK time. Hashtags left blank are kept as they were.</span>
               <button type="submit">Save</button>
             </form>
 
@@ -232,6 +251,14 @@ export default async function CalendarPage() {
 
                         {day?.start_time_utc && <div className="meta">{formatUKTime(day.start_time_utc)} UK</div>}
                         {!day?.start_time_utc && showTbc && <div className="meta">time tbc</div>}
+
+                        {admin && day?.game && (day.hashtags ? (
+                          <div className="meta tags" title="Hashtags for social posts (only admins see this)">{day.hashtags}</div>
+                        ) : hashtagsByGame[day.game.trim().toLowerCase()] ? (
+                          <div className="meta tags tags-inherited" title="No hashtags set for this day, so the last ones used for this game apply">
+                            {hashtagsByGame[day.game.trim().toLowerCase()]}
+                          </div>
+                        ) : null)}
 
                         {(attendees.length > 0 || guestNames.length > 0) && (
                           <div className="who">

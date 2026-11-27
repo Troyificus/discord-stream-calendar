@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { verifySessionToken } from '../lib/session.js';
 import { supabaseAdmin } from '../lib/supabaseAdmin.js';
 import { getMonthDates, WEEKDAY_INDEX, formatDateUK } from '../lib/calendar.js';
+import { normalizeHashtags } from '../lib/hashtags.js';
 
 async function getSessionUser() {
   const cookieStore = await cookies();
@@ -156,8 +157,14 @@ export async function setGame(formData) {
   if (!game) throw new Error('Enter a game.');
   const startTimeUtc = parseTimeToUtc(date, time);
 
+  // Hashtags are optional here: left blank, the day keeps whatever it already had.
+  const hashtags = normalizeHashtags(formData.get('hashtags'));
+
   const day = await getOrCreateDay(date);
-  const { error } = await supabaseAdmin.from('stream_days').update({ game, start_time_utc: startTimeUtc, updated_at: new Date().toISOString() }).eq('id', day.id);
+  const { error } = await supabaseAdmin
+    .from('stream_days')
+    .update({ game, start_time_utc: startTimeUtc, ...(hashtags ? { hashtags } : {}), updated_at: new Date().toISOString() })
+    .eq('id', day.id);
   check(error, 'Saving the game failed');
   revalidatePath('/');
 }
@@ -170,7 +177,7 @@ export async function clearGame(formData) {
   if (!date) throw new Error('Pick a date.');
 
   const day = await getOrCreateDay(date);
-  const { error } = await supabaseAdmin.from('stream_days').update({ game: null, start_time_utc: null, updated_at: new Date().toISOString() }).eq('id', day.id);
+  const { error } = await supabaseAdmin.from('stream_days').update({ game: null, start_time_utc: null, hashtags: null, updated_at: new Date().toISOString() }).eq('id', day.id);
   check(error, 'Clearing the game failed');
 
   // No event, no attendees - clear anyone who'd signed up or requested to guest for it.
@@ -180,6 +187,22 @@ export async function clearGame(formData) {
   const { error: requestsError } = await supabaseAdmin.from('guest_requests').delete().eq('stream_day_id', day.id);
   check(requestsError, 'Clearing guest requests failed');
 
+  revalidatePath('/');
+}
+
+// Sets (or, left blank, clears) the hashtags for one day. Hashtags only appear in social
+// posts, never on the public calendar.
+export async function setHashtags(formData) {
+  const user = await getSessionUser();
+  if (!user?.isAdmin) throw new Error('Admin only.');
+
+  const date = formData.get('date');
+  if (!date) throw new Error('Pick a date.');
+  const hashtags = normalizeHashtags(formData.get('hashtags'));
+
+  const day = await getOrCreateDay(date);
+  const { error } = await supabaseAdmin.from('stream_days').update({ hashtags, updated_at: new Date().toISOString() }).eq('id', day.id);
+  check(error, 'Saving hashtags failed');
   revalidatePath('/');
 }
 
@@ -214,10 +237,15 @@ export async function setRecurring(formData) {
   const matches = getMonthDates(monthOffset).filter((d) => new Date(`${d}T00:00:00Z`).getUTCDay() === targetIndex);
   if (!matches.length) throw new Error(`No ${weekday}s left in that month.`);
 
+  const hashtags = normalizeHashtags(formData.get('hashtags'));
+
   for (const date of matches) {
     const startTimeUtc = parseTimeToUtc(date, time);
     const day = await getOrCreateDay(date);
-    const { error } = await supabaseAdmin.from('stream_days').update({ game, start_time_utc: startTimeUtc, updated_at: new Date().toISOString() }).eq('id', day.id);
+    const { error } = await supabaseAdmin
+      .from('stream_days')
+      .update({ game, start_time_utc: startTimeUtc, ...(hashtags ? { hashtags } : {}), updated_at: new Date().toISOString() })
+      .eq('id', day.id);
     check(error, `Saving ${date} failed`);
   }
   revalidatePath('/');

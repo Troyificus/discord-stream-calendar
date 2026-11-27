@@ -434,3 +434,7 @@ main {
   transition: color 0.15s ease;
 }
 .social-links a:hover { color: var(--accent); }
+
+/* Admin-only hashtag line in day cells */
+.meta.tags { color: var(--accent-light); word-break: break-word; }
+.meta.tags.tags-inherited { opacity: 0.6; font-style: italic; }

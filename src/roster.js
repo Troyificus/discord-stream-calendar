@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient.js';
 import { ukParts, addDays } from './ukTime.js';
+import { latestHashtagsByGame } from './hashtags.js';
 
 // Map keyed by ISO date -> { game, start_time_utc, attendees, attendeeIds, guestNames, open, full }.
 // Only days with something scheduled are included. Shared by the calendar image, the
@@ -22,6 +23,10 @@ export async function getDayInfo(dates) {
     approvedGuests = data ?? [];
   }
 
+  // Days without their own hashtags fall back to the last ones set for the same game.
+  const { data: tagRows } = await supabase.from('stream_days').select('game, hashtags, date').not('hashtags', 'is', null);
+  const hashtagsByGame = latestHashtagsByGame(tagRows);
+
   const dayInfo = new Map();
   for (const date of dates) {
     const day = (days ?? []).find((d) => d.date === date);
@@ -35,6 +40,7 @@ export async function getDayInfo(dates) {
     dayInfo.set(date, {
       date,
       game: day.game,
+      hashtags: day.hashtags || (day.game ? hashtagsByGame[day.game.trim().toLowerCase()] : null) || null,
       start_time_utc: day.start_time_utc,
       attendees,
       attendeeIds,

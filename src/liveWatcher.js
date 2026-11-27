@@ -2,7 +2,7 @@ import { getLiveStream, twitchConfigured } from './twitch.js';
 import { findLineupFor } from './roster.js';
 import { claim, markPosted, postedSince } from './socialLog.js';
 import { postizConfigured, createPost, idsFromEnv } from './postiz.js';
-import { announceInDiscord, twitchUrl, joinNames } from './announce.js';
+import { announceInDiscord, twitchUrl, joinNames, withHashtags } from './announce.js';
 import { createReminder } from './reminders.js';
 
 const POLL_MS = 60 * 1000;
@@ -30,7 +30,7 @@ export function buildLiveText(lineup, stream) {
   const verb = names.length === 1 ? 'is' : 'are';
   const game = lineup?.game || stream?.game_name || 'something fun';
   const template = TEMPLATES[Math.floor(Math.random() * TEMPLATES.length)];
-  return template(who, verb, game, twitchUrl());
+  return withHashtags(template(who, verb, game, twitchUrl()), lineup?.hashtags);
 }
 
 async function handleWentLive(client, stream) {
