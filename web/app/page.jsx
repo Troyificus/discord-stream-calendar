@@ -6,7 +6,7 @@ import { getThumbnailMap } from '../lib/gameThumbnails.js';
 import { latestHashtagsByGame } from '../lib/hashtags.js';
 import {
   joinDay, leaveDay, requestGuest, leaveGuestSlot,
-  setGame, clearGame, setCapacity, setRecurring, setHashtags,
+  setGame, clearGame, setCapacity, setRecurring, setHashtags, setGlobalHashtags,
   approveRequest, denyRequest, uploadThumbnail
 } from './actions.js';
 
@@ -47,6 +47,7 @@ export default async function CalendarPage() {
   const admin = session?.isAdmin ?? false;
   let pendingRequests = [];
   let hashtagsByGame = {};
+  let globalHashtags = '';
   let approvedGuestsAdminList = [];
   if (admin) {
     // Admin only: a day with no hashtags of its own uses the last ones set for the same game.
@@ -55,6 +56,9 @@ export default async function CalendarPage() {
       .select('game, hashtags, date')
       .not('hashtags', 'is', null);
     hashtagsByGame = latestHashtagsByGame(tagRows);
+
+    const { data: globalSetting } = await supabaseAdmin.from('settings').select('value').eq('key', 'global_hashtags').maybeSingle();
+    globalHashtags = globalSetting?.value ?? '';
 
     const { data: pending } = await supabaseAdmin
       .from('guest_requests')
@@ -133,6 +137,13 @@ export default async function CalendarPage() {
               <input type="date" name="date" min={pickerMin} max={pickerMax} required />
               <input type="text" name="hashtags" placeholder="#warhammer #minipainting" />
               <span className="hint">Used in social posts only. Spaces or commas between tags, # optional. Save it blank to clear. A day with none uses the last ones set for the same game.</span>
+              <button type="submit">Save</button>
+            </form>
+
+            <form action={setGlobalHashtags} className="admin-form">
+              <h3>Global hashtags</h3>
+              <input type="text" name="hashtags" placeholder="#twitch #streamer" defaultValue={globalHashtags} key={globalHashtags} />
+              <span className="hint">Added to every social post, after the game tags. These always fit: if space runs short, game tags are dropped first. Save it blank to clear.</span>
               <button type="submit">Save</button>
             </form>
 

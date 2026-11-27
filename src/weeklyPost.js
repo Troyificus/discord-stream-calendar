@@ -5,7 +5,7 @@ import { getThumbnailMap } from './gameThumbnails.js';
 import { weekdayAbbr } from './embedBuilder.js';
 import { claim, getEntry, markPosted } from './socialLog.js';
 import { postizConfigured, createPost, deletePost, uploadImage, idsFromEnv } from './postiz.js';
-import { announceInDiscord, twitchUrl, withHashtags, MAX_POST_LENGTH } from './announce.js';
+import { announceInDiscord, twitchUrl, withHashtags, getGlobalHashtags, MAX_POST_LENGTH } from './announce.js';
 import { ukParts, addDays, mondayOf, ukLocalToDate, formatUkTime } from './ukTime.js';
 
 const CHECK_MS = 60 * 1000;
@@ -17,7 +17,7 @@ function prettyDate(isoDate) {
   return `${Number(isoDate.slice(8, 10))} ${SHORT_MONTHS[Number(isoDate.slice(5, 7)) - 1]}`;
 }
 
-export function buildWeeklyText(dayInfo) {
+export function buildWeeklyText(dayInfo, globalTags = '') {
   const lines = [...dayInfo.values()].map((info) => {
     const time = info.start_time_utc ? formatUkTime(info.start_time_utc) : 'time tbc';
     return `${weekdayAbbr(info.date)}: ${info.game || 'game tbc'}, ${time}`;
@@ -28,7 +28,7 @@ export function buildWeeklyText(dayInfo) {
     : `This week on TNT Nerds: ${dayInfo.size} streams 🎮 Full schedule in the picture. ${twitchUrl()}`;
   // Every hashtag from the week's streams, as many as fit.
   const allTags = [...dayInfo.values()].map((info) => info.hashtags).filter(Boolean).join(' ');
-  return withHashtags(text, allTags);
+  return withHashtags(text, allTags, globalTags);
 }
 
 // Builds and sends the schedule for the week starting `weekStart` (a Monday).
@@ -46,7 +46,7 @@ export async function publishWeek(client, weekStart, { fromDate = null } = {}) {
     scheduled,
     thumbnails
   );
-  const text = buildWeeklyText(scheduled);
+  const text = buildWeeklyText(scheduled, await getGlobalHashtags());
 
   const discordMessage = await announceInDiscord(client, { content: text, files: [new AttachmentBuilder(image, { name: 'schedule.png' })] });
 

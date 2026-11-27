@@ -2,7 +2,7 @@ import { getLiveStream, twitchConfigured } from './twitch.js';
 import { findLineupFor } from './roster.js';
 import { claim, markPosted, postedSince } from './socialLog.js';
 import { postizConfigured, createPost, idsFromEnv } from './postiz.js';
-import { announceInDiscord, twitchUrl, joinNames, withHashtags } from './announce.js';
+import { announceInDiscord, twitchUrl, joinNames, withHashtags, getGlobalHashtags } from './announce.js';
 import { createReminder } from './reminders.js';
 
 const POLL_MS = 60 * 1000;
@@ -24,13 +24,13 @@ const TEMPLATES = [
   (who, verb, game, link) => `${game} time. ${who} ${verb} on now: ${link}`
 ];
 
-export function buildLiveText(lineup, stream) {
+export function buildLiveText(lineup, stream, globalTags = '') {
   const names = [...(lineup?.attendees ?? []), ...(lineup?.guestNames ?? [])];
   const who = names.length ? joinNames(names) : 'TNT Nerds';
   const verb = names.length === 1 ? 'is' : 'are';
   const game = lineup?.game || stream?.game_name || 'something fun';
   const template = TEMPLATES[Math.floor(Math.random() * TEMPLATES.length)];
-  return withHashtags(template(who, verb, game, twitchUrl()), lineup?.hashtags);
+  return withHashtags(template(who, verb, game, twitchUrl()), lineup?.hashtags, globalTags);
 }
 
 async function handleWentLive(client, stream) {
@@ -47,7 +47,7 @@ async function handleWentLive(client, stream) {
   }
 
   const lineup = await findLineupFor(startedAt);
-  const text = buildLiveText(lineup, stream);
+  const text = buildLiveText(lineup, stream, await getGlobalHashtags());
   console.log(`Going live: ${text}`);
 
   await announceInDiscord(client, { content: text });

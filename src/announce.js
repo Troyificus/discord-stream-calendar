@@ -1,3 +1,5 @@
+import { supabase } from './supabaseClient.js';
+
 // Posts to the Discord announcements channel, if one is configured.
 export async function announceInDiscord(client, payload) {
   const channelId = process.env.DISCORD_ANNOUNCE_CHANNEL_ID;
@@ -27,16 +29,36 @@ export function joinNames(names, max = 4) {
 // Bluesky allows 300 characters and X 280; posts are kept under this.
 export const MAX_POST_LENGTH = 270;
 
-// Adds as many of the hashtags as fit within MAX_POST_LENGTH, on their own line.
-export function withHashtags(text, hashtags) {
-  const tags = [...new Set(String(hashtags ?? '').split(/\s+/).filter(Boolean))];
-  let out = text;
-  const kept = [];
-  for (const tag of tags) {
-    const candidate = `${text}\n\n${[...kept, tag].join(' ')}`;
-    if (candidate.length > MAX_POST_LENGTH) break;
-    kept.push(tag);
-    out = candidate;
+// Adds hashtags on their own line, keeping the post within MAX_POST_LENGTH.
+// Global tags are guaranteed a place first; game tags fill whatever room is left.
+// Shown in the order: game tags, then global tags. Duplicates are dropped.
+export function withHashtags(text, gameTags, globalTags = '') {
+  const split = (tags) => String(tags ?? '').split(/\s+/).filter(Boolean);
+  const seen = new Set();
+  const unique = (tags) => tags.filter((t) => !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase()));
+  const global = unique(split(globalTags));
+  const games = unique(split(gameTags));
+
+  const render = (g, gl) => {
+    const line = [...g, ...gl].join(' ');
+    return line ? `${text}\n\n${line}` : text;
+  };
+
+  const keptGlobal = [];
+  for (const tag of global) {
+    if (render([], [...keptGlobal, tag]).length > MAX_POST_LENGTH) break;
+    keptGlobal.push(tag);
   }
-  return out;
+  const keptGames = [];
+  for (const tag of games) {
+    if (render([...keptGames, tag], keptGlobal).length > MAX_POST_LENGTH) break;
+    keptGames.push(tag);
+  }
+  return render(keptGames, keptGlobal);
+}
+
+// The site wide hashtags admins set on the website (settings key 'global_hashtags').
+export async function getGlobalHashtags() {
+  const { data } = await supabase.from('settings').select('value').eq('key', 'global_hashtags').maybeSingle();
+  return data?.value ?? '';
 }

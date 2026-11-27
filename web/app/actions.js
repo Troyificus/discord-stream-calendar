@@ -206,6 +206,17 @@ export async function setHashtags(formData) {
   revalidatePath('/');
 }
 
+// Hashtags added to every social post, whatever's being streamed. Blank clears them.
+export async function setGlobalHashtags(formData) {
+  const user = await getSessionUser();
+  if (!user?.isAdmin) throw new Error('Admin only.');
+
+  const hashtags = normalizeHashtags(formData.get('hashtags'));
+  const { error } = await supabaseAdmin.from('settings').upsert({ key: 'global_hashtags', value: hashtags });
+  check(error, 'Saving global hashtags failed');
+  revalidatePath('/');
+}
+
 export async function setCapacity(formData) {
   const user = await getSessionUser();
   if (!user?.isAdmin) throw new Error('Admin only.');
