@@ -436,5 +436,13 @@ main {
 .social-links a:hover { color: var(--accent); }
 
 /* Admin-only hashtag line in day cells */
-.meta.tags { color: var(--accent-light); word-break: break-word; }
+/* Always exactly one small line, however many tags; hover shows the full list */
+.meta.tags {
+  color: var(--accent-light);
+  font-size: 0.7rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: help;
+}
 .meta.tags.tags-inherited { opacity: 0.6; font-style: italic; }

@@ -253,9 +253,9 @@ export default async function CalendarPage() {
                         {!day?.start_time_utc && showTbc && <div className="meta">time tbc</div>}
 
                         {admin && day?.game && (day.hashtags ? (
-                          <div className="meta tags" title="Hashtags for social posts (only admins see this)">{day.hashtags}</div>
+                          <div className="meta tags" title={`Social post hashtags (only admins see this): ${day.hashtags}`}>{day.hashtags}</div>
                         ) : hashtagsByGame[day.game.trim().toLowerCase()] ? (
-                          <div className="meta tags tags-inherited" title="No hashtags set for this day, so the last ones used for this game apply">
+                          <div className="meta tags tags-inherited" title={`Carried over from the last ${day.game} stream (only admins see this): ${hashtagsByGame[day.game.trim().toLowerCase()]}`}>
                             {hashtagsByGame[day.game.trim().toLowerCase()]}
                           </div>
                         ) : null)}
