@@ -53,3 +53,30 @@ Each part switches itself off if its settings in `.env` are blank, so you can tu
 4. Your Discord user ID into `REMINDER_DISCORD_USER_ID`. Make sure you allow DMs from server members for this server.
 5. `npm run deploy-commands` (adds `/schedule-post`), then `docker compose up -d --build`.
 6. Check `docker compose logs -f`: it says which features are off and why.
+
+## Clips (optional)
+
+After each stream (about 15 minutes after it ends), the bot:
+1. collects the clips people made during that stream, best first (most views), dropping clips
+   under 5 seconds and near-duplicates of the same moment (`CLIPS_MAX_PER_STREAM`, default 5);
+2. downloads them through Twitch's official clip download API;
+3. makes a vertical 1080x1920 version: the whole clip in the middle over a blurred copy, the
+   channel name at the top, and burned-in captions from Whisper (runs on the server, no API);
+4. saves each one in Postiz as a **draft** (nothing is published), suggested one per day from the
+   next day at `CLIP_POST_TIME`;
+5. lists them in the after stream reminder DM, so the job is just reviewing and scheduling.
+
+`/clips` (admin) does the same for any clips from the last N hours (default 12) that haven't been
+prepared yet, and DMs you the result. Handy for clips made later from the VOD.
+
+### Setup
+1. Run `migration_clips.sql` in Supabase (adds `reminders.note`).
+2. In dev.twitch.tv -> Your Console -> your app -> Manage, add `http://localhost:3000` as an
+   OAuth Redirect URL (or set `TWITCH_REDIRECT_URI` to one that's already there).
+3. Rebuild: `docker compose up -d --build` (the image now includes ffmpeg and faster-whisper).
+4. Once, logged in to Twitch as the channel:
+   `docker compose exec discord-stream-calendar npm run twitch-clips-auth` and follow the prompts.
+5. `npm run deploy-commands` to add `/clips`.
+
+The first captioned clip downloads the speech model (about 500 MB for `small.en`), kept in the
+`whisper-models` volume. On a laptop CPU, expect roughly a minute or two per clip.

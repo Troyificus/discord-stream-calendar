@@ -5,3 +5,9 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    volumes:
+      # Caption model, downloaded once on first use (about 500 MB for small.en)
+      - whisper-models:/models
+
+volumes:
+  whisper-models:

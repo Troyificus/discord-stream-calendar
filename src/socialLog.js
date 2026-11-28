@@ -39,3 +39,8 @@ export async function postedSince(kind, since, exceptRef) {
   if (error) throw error;
   return (data ?? []).length > 0;
 }
+
+// Releases a claim so a later run can try again (used when processing failed).
+export async function unclaim(kind, ref) {
+  await supabase.from('social_posts').delete().eq('kind', kind).eq('ref', ref).is('posted_at', null);
+}

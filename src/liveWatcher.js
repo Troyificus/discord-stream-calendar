@@ -4,6 +4,7 @@ import { claim, markPosted, postedSince } from './socialLog.js';
 import { postizConfigured, createPost, idsFromEnv } from './postiz.js';
 import { announceInDiscord, twitchUrl, joinNames, withHashtags, getGlobalHashtags } from './announce.js';
 import { createReminder } from './reminders.js';
+import { clipsEnabled, processClips, reminderNote } from './clips.js';
 
 const POLL_MS = 60 * 1000;
 // Twitch can briefly report a stream as offline (dropped connection, OBS restart).
@@ -63,7 +64,21 @@ async function handleWentLive(client, stream) {
   await markPosted('live', stream.id, postizId);
 }
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function handleStreamEnded(client, ended) {
+  // Clips first (for every stream, whoever was on), so the reminder can list them.
+  let clipResult = null;
+  if (clipsEnabled()) {
+    // Give people a few minutes to make end of stream clips, and Twitch time to process them.
+    await sleep(Number(process.env.CLIP_DELAY_MINUTES || 10) * 60 * 1000);
+    try {
+      clipResult = await processClips(ended.startedAt, new Date());
+    } catch (err) {
+      console.error('Clip processing failed:', err);
+    }
+  }
+
   const target = process.env.REMINDER_DISCORD_USER_ID;
   if (!target) return;
 
@@ -72,7 +87,7 @@ async function handleStreamEnded(client, ended) {
     // Unscheduled streams (no lineup) still get a reminder, since we can't tell who was on.
     if (lineup && !lineup.attendeeIds.includes(target)) return;
   }
-  await createReminder(client, ended.id);
+  await createReminder(client, ended.id, reminderNote(clipResult));
 }
 
 async function poll(client) {
@@ -96,7 +111,8 @@ async function poll(client) {
   current = null;
   offlinePolls = 0;
   console.log(`Stream ${ended.id} ended.`);
-  await handleStreamEnded(client, ended);
+  // Not awaited: clip processing takes a while and the watcher must keep checking for new streams.
+  handleStreamEnded(client, ended).catch((err) => console.error('After stream handling failed:', err));
 }
 
 export function startLiveWatcher(client) {

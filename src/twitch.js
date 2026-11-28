@@ -39,3 +39,50 @@ export async function getLiveStream(login) {
   const body = await helix(`streams?user_login=${encodeURIComponent(login)}`);
   return body.data?.[0] ?? null;
 }
+
+// ---- Clips ----
+
+const userIdCache = new Map();
+
+export async function getUserId(login) {
+  if (userIdCache.has(login)) return userIdCache.get(login);
+  const body = await helix(`users?login=${encodeURIComponent(login)}`);
+  const id = body.data?.[0]?.id;
+  if (!id) throw new Error(`Twitch user "${login}" not found`);
+  userIdCache.set(login, id);
+  return id;
+}
+
+// All clips of a channel created between two instants (Date objects), across pages.
+export async function getClipsBetween(broadcasterId, startedAt, endedAt) {
+  const clips = [];
+  let cursor = null;
+  do {
+    const params = new URLSearchParams({
+      broadcaster_id: broadcasterId,
+      started_at: startedAt.toISOString(),
+      ended_at: endedAt.toISOString(),
+      first: '100'
+    });
+    if (cursor) params.set('after', cursor);
+    const body = await helix(`clips?${params}`);
+    clips.push(...(body.data ?? []));
+    cursor = body.pagination?.cursor ?? null;
+  } while (cursor && clips.length < 1000);
+  return clips;
+}
+
+// { clipId: { landscape, portrait } } download URLs (temporary). Needs the channel to have
+// authorised this app with channel:manage:clips (run "npm run twitch-clips-auth" once).
+export async function getClipDownloadUrls(broadcasterId, clipIds) {
+  const urls = {};
+  for (let i = 0; i < clipIds.length; i += 10) {
+    const params = new URLSearchParams({ editor_id: broadcasterId, broadcaster_id: broadcasterId });
+    for (const id of clipIds.slice(i, i + 10)) params.append('clip_id', id);
+    const body = await helix(`clips/downloads?${params}`);
+    for (const row of body.data ?? []) {
+      urls[row.clip_id] = { landscape: row.landscape_download_url, portrait: row.portrait_download_url };
+    }
+  }
+  return urls;
+}

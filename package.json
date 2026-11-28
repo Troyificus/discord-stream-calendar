@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node src/index.js",
     "deploy-commands": "node src/deploy-commands.js",
-    "postiz-channels": "node src/postiz-channels.js"
+    "postiz-channels": "node src/postiz-channels.js",
+    "twitch-clips-auth": "node src/twitch-clips-auth.js"
   },
   "dependencies": {
     "@napi-rs/canvas": "^1.0.7",

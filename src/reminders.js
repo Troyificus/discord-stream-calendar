@@ -24,12 +24,14 @@ function buttons(reminderId) {
   return [row];
 }
 
-export async function createReminder(client, streamId) {
+// note: optional first message (e.g. the list of clips waiting in Postiz); the standard
+// message is used when it's left out. Follow up nudges always use the short standard one.
+export async function createReminder(client, streamId, note = null) {
   // Only ever one live reminder: a new stream replaces any you never answered.
   await supabase.from('reminders').update({ status: 'superseded', next_send_at: null }).eq('status', 'active');
   const { error } = await supabase
     .from('reminders')
-    .insert({ stream_id: streamId, status: 'active', sends: 0, next_send_at: new Date().toISOString() });
+    .insert({ stream_id: streamId, status: 'active', sends: 0, note, next_send_at: new Date().toISOString() });
   if (error && error.code !== '23505') throw error;
   await processDueReminders(client);
 }
@@ -60,7 +62,7 @@ export async function processDueReminders(client) {
 
       try {
         const user = await client.users.fetch(target);
-        await user.send({ content: sends === 1 ? FIRST_MESSAGE : FOLLOW_UP_MESSAGE, components: buttons(reminder.id) });
+        await user.send({ content: sends === 1 ? reminder.note || FIRST_MESSAGE : FOLLOW_UP_MESSAGE, components: buttons(reminder.id) });
       } catch (err) {
         console.error('Sending reminder DM failed (are DMs from server members allowed?):', err);
       }

@@ -80,15 +80,20 @@ function settingsFor(identifier) {
   }
 }
 
-// Uploads a PNG buffer, returns { id, path } ready to attach to a post.
-export async function uploadImage(buffer, filename) {
+// Uploads a file buffer, returns { id, path } ready to attach to a post.
+export async function uploadMedia(buffer, filename, mimeType) {
   const form = new FormData();
-  form.append('file', new Blob([buffer], { type: 'image/png' }), filename);
+  form.append('file', new Blob([buffer], { type: mimeType }), filename);
   const media = await postizFetch('/upload', { method: 'POST', body: form });
   return { id: media.id, path: media.path };
 }
 
-// Sends one post to several channels. type: 'now' or 'schedule'.
+export function uploadImage(buffer, filename) {
+  return uploadMedia(buffer, filename, 'image/png');
+}
+
+// Sends one post to several channels. type: 'now', 'schedule' or 'draft' (saved in Postiz for
+// you to review, nothing is published). image: an uploaded image or video ({ id, path }).
 // Returns the first Postiz post ID (deleting it removes the whole group), or null if nothing was sent.
 export async function createPost({ integrationIds, content, image = null, type = 'now', date = new Date() }) {
   if (!integrationIds.length) return null;
