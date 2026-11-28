@@ -46,6 +46,28 @@ export function idsFromEnv(name) {
   return (process.env[name] ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 }
 
+// Threads only allows one topic tag per post (the first one counts, the rest are clutter),
+// so keep the first hashtag and drop the others. Game tags come before global tags in our
+// posts, so this keeps the stream's first game tag, or the first global tag if it has none.
+export function keepFirstHashtag(content) {
+  let kept = false;
+  const stripped = content.replace(/(^|\s)#[\p{L}\p{N}_]+/gu, (match, lead) => {
+    if (kept) return lead === '\n' ? '\n' : '';
+    kept = true;
+    return match;
+  });
+  return stripped
+    .split('\n')
+    .map((line) => line.replace(/ {2,}/g, ' ').trimEnd())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function contentFor(identifier, content) {
+  return identifier === 'threads' ? keepFirstHashtag(content) : content;
+}
+
 function settingsFor(identifier) {
   switch (identifier) {
     case 'x':
@@ -89,7 +111,7 @@ export async function createPost({ integrationIds, content, image = null, type =
     }
     posts.push({
       integration: { id },
-      value: [{ content, image: image ? [image] : [] }],
+      value: [{ content: contentFor(integration.identifier, content), image: image ? [image] : [] }],
       settings: settingsFor(integration.identifier)
     });
   }
